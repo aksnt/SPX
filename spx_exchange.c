@@ -7,6 +7,6 @@
 #include "spx_exchange.h"
 
 int main(int argc, char **argv) {
-	printf("TODO\n");
+	printf("SPX\n");
 	return 0;
 }

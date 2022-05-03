@@ -77,26 +77,28 @@ int main(int argc, char **argv) {
             sprintf(trader_id, "%d", i);
             char *args[] = {argv[2 + i], trader_id, NULL};
             SPX_print("Starting trader %d (%s)\n", i, argv[2 + i]);
-            printf("[CHILD]: Trader is %d. Child is %d. Parent is %d.\n", getpid(), children[i], getppid());
+            // printf("[CHILD]: Trader is %d. Child is %d. Parent is %d.\n", getpid(), children[i], getppid());
             execvp(argv[2 + i], args);
             exit(0);
         } else {
             // parent process
             //  Send "CONNECT" to trader (child process)
 
-            exchange_fd[i] = open(exchange_fifo[i], O_WRONLY);
-            sent_msg = "CONNECT;";
-            write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);
-            close(exchange_fd[i]);
 
             SPX_print("Connected to /tmp/spx_exchange_%d\n", i);
             SPX_print("Connected to /tmp/spx_trader_%d\n", i);
-            printf("[PARENT]: Trader is %d. Child is %d. Parent is %d.\n", getpid(), children[i], getppid());
+            // printf("[PARENT]: Trader is %d. Child is %d. Parent is %d.\n", getpid(), children[i], getppid());
 
-            // Wait for signal
-
-            kill(getpid(), SIGUSR1);
+			kill(getpid(), SIGUSR1);
             pause();
+
+            exchange_fd[i] = open(exchange_fifo[i], O_WRONLY);
+            sent_msg = "MARKET OPEN;";
+            write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);
+            close(exchange_fd[i]);
+            // Wait for signal
+			signal(SIGUSR1, sig_handle);
+			pause();
 
             if (strcmp(read_from_trader(i), "BUY 0 GPU 30 500") == 0) {
                 strcpy(rec_order, read_from_trader(i));

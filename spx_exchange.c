@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
     exchange_fifo = malloc(sizeof(char *) * num_traders);
     trader_fifo = malloc(sizeof(char *) * num_traders);
 
-    pid_t children[FIFO_LIMIT];  // add children to this array
+    // pid_t children[FIFO_LIMIT];  // add children to this array
 
     for (int i = 0; i < num_traders; ++i) {
         exchange_fifo[i] = malloc(sizeof(char) * FIFO_LIMIT);
@@ -68,8 +68,7 @@ int main(int argc, char **argv) {
         SPX_print("Created FIFO /tmp/spx_trader_%d\n", i);
 
         pid_t res = fork();
-        pid_t cur_child = getpid();
-        children[i] = cur_child;
+        // pid_t cur_child = getpid();
 
         if (res == 0) {
             // child process

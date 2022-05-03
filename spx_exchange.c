@@ -66,12 +66,13 @@ int main(int argc, char **argv) {
         mkfifo(trader_fifo[i], 0666);
         SPX_print("Created FIFO /tmp/spx_trader_%d\n", i);
 
-		SPX_print("Starting trader %d (%s)\n", i, argv[2 + i]);
+		
 
         pid_t res = fork();
         // pid_t cur_child = getpid();
         if (res == 0) {
             // child process
+			SPX_print("Starting trader %d (%s)\n", i, argv[2 + i]);
             char trader_id[FIFO_LIMIT];
             sprintf(trader_id, "%d", i);
             char *args[] = {argv[2 + i], trader_id, NULL};

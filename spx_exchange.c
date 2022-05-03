@@ -42,7 +42,6 @@ int main(int argc, char **argv) {
     for (int i = 0; i < num_products; ++i) {
         printf("%s ", products[i]);
     }
-
     printf("\n");
 
     // FIFO: Begin
@@ -67,15 +66,15 @@ int main(int argc, char **argv) {
         mkfifo(trader_fifo[i], 0666);
         SPX_print("Created FIFO /tmp/spx_trader_%d\n", i);
 
+		SPX_print("Starting trader %d (%s)\n", i, argv[2 + i]);
+
         pid_t res = fork();
         // pid_t cur_child = getpid();
-
         if (res == 0) {
             // child process
             char trader_id[FIFO_LIMIT];
             sprintf(trader_id, "%d", i);
             char *args[] = {argv[2 + i], trader_id, NULL};
-            SPX_print("Starting trader %d (%s)\n", i, argv[2 + i]);
             // printf("[CHILD]: Trader is %d. Child is %d. Parent is %d.\n", getpid(), children[i], getppid());
             execvp(argv[2 + i], args);
             exit(0);
@@ -83,13 +82,11 @@ int main(int argc, char **argv) {
             // parent process
             //  Send "CONNECT" to trader (child process)
 
-
             SPX_print("Connected to /tmp/spx_exchange_%d\n", i);
             SPX_print("Connected to /tmp/spx_trader_%d\n", i);
             // printf("[PARENT]: Trader is %d. Child is %d. Parent is %d.\n", getpid(), children[i], getppid());
 
-			kill(getpid(), SIGUSR1);
-            pause();
+			kill(res, SIGUSR1);
 
             exchange_fd[i] = open(exchange_fifo[i], O_WRONLY);
             sent_msg = "MARKET OPEN;";

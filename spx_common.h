@@ -15,5 +15,8 @@
 #define FIFO_EXCHANGE "/tmp/spx_exchange_%d"
 #define FIFO_TRADER "/tmp/spx_trader_%d"
 #define FEE_PERCENTAGE 1
+#define PRODUCT_CHAR_LIMIT 16
+#define FIFO_LIMIT 80
+#define ORDER_SIZE_LIMIT 50
 
 #endif

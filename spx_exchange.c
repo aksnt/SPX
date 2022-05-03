@@ -42,7 +42,6 @@ int main(int argc, char **argv) {
     for (int i = 0; i < num_products; ++i) {
         printf("%s ", products[i]);
     }
-    printf("\n\n");
 
     // FIFO: Begin
     int num_traders = argc - 2;
@@ -74,6 +73,7 @@ int main(int argc, char **argv) {
             char trader_id[FIFO_LIMIT];
             sprintf(trader_id, "%d", i);
             char *args[] = {argv[2 + i], trader_id, NULL};
+			
             // printf("[CHILD]: Trader is %d. Child is %d. Parent is %d.\n", getpid(), children[i], getppid());
             execvp(argv[2 + i], args);
             exit(0);

@@ -2,7 +2,7 @@
 #define SPX_EXCHANGE_H
 
 #include "spx_common.h"
-#include "utility.h"
+// #include "utility.h"
 
 #define LOG_PREFIX "[SPX]"
 

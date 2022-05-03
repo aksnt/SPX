@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < num_products; ++i) {
         printf("%s ", products[i]);
     }
-    printf("\n");
+    printf("\n\n");
 
     // FIFO: Begin
     int num_traders = argc - 2;
@@ -65,8 +65,6 @@ int main(int argc, char **argv) {
 
         mkfifo(trader_fifo[i], 0666);
         SPX_print("Created FIFO /tmp/spx_trader_%d\n", i);
-
-		
 
         pid_t res = fork();
         // pid_t cur_child = getpid();

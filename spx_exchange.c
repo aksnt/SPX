@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
     }
 
     for (int i = 0; i < num_traders; i++) {
-        write_to_trader(i, "MARKET OPEN;");
+        // write_to_trader(i, "MARKET OPEN;");
         kill(children[i], SIGUSR1);
         // sent_msg = "MARKET OPEN;";
         // write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);     
@@ -164,4 +164,55 @@ int read_products(char *path, int *num_products, char ***products) {
 
     fclose(file);
     return 0;
+}
+
+
+int read_products(char *path, int *num_products, char ***products) {
+    FILE *file;
+
+    file = fopen(path, "r");
+    if (file == NULL) {
+        return -1;
+    }
+
+    char line[PRODUCT_CHAR_LIMIT];
+    // Read the first line
+    fgets(line, PRODUCT_CHAR_LIMIT, file);
+    // Parse string line -> integer
+    *num_products = atoi(line);
+    *products = malloc(sizeof(char *) * (*num_products));
+    for (int i = 0; i < *num_products; i++) {
+        fgets(line, PRODUCT_CHAR_LIMIT, file);
+        (*products)[i] = malloc(sizeof(char) * (PRODUCT_CHAR_LIMIT + 1));
+        line[strcspn(line, "\n")] = '\0';
+        strcpy((*products)[i], line);
+    }
+
+    fclose(file);
+    return 0;
+}
+
+int SPX_print(const char *restrict format, ...) {
+    int res1, res2;
+    va_list ap;
+    res1 = printf("[SPX] ");
+    if (res1 < 0)
+        return res1;
+
+    va_start(ap, format);
+    res2 = vprintf(format, ap);
+    va_end(ap);
+    return res2 < 0 ? res2 : res1 + res2;
+}
+
+char *get_message(char *input) {
+    int delimiter;
+    for (int i = 0; i < FIFO_LIMIT; ++i)
+        if (input[i] == ';') {
+            delimiter = i;
+            break;
+        }
+
+    input[delimiter] = '\0';
+    return input;
 }

@@ -108,8 +108,8 @@ int main(int argc, char **argv) {
     }
 
     for (int i = 0; i < num_traders; i++) {
-        // write_to_trader(i, "MARKET OPEN;");
-        kill(children[i], SIGUSR1);
+        write_to_trader(children[i], "MARKET OPEN;");
+        // kill(children[i], SIGUSR1);
         // sent_msg = "MARKET OPEN;";
         // write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);     
     }

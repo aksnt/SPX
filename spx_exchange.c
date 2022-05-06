@@ -166,32 +166,6 @@ int read_products(char *path, int *num_products, char ***products) {
     return 0;
 }
 
-
-int read_products(char *path, int *num_products, char ***products) {
-    FILE *file;
-
-    file = fopen(path, "r");
-    if (file == NULL) {
-        return -1;
-    }
-
-    char line[PRODUCT_CHAR_LIMIT];
-    // Read the first line
-    fgets(line, PRODUCT_CHAR_LIMIT, file);
-    // Parse string line -> integer
-    *num_products = atoi(line);
-    *products = malloc(sizeof(char *) * (*num_products));
-    for (int i = 0; i < *num_products; i++) {
-        fgets(line, PRODUCT_CHAR_LIMIT, file);
-        (*products)[i] = malloc(sizeof(char) * (PRODUCT_CHAR_LIMIT + 1));
-        line[strcspn(line, "\n")] = '\0';
-        strcpy((*products)[i], line);
-    }
-
-    fclose(file);
-    return 0;
-}
-
 int SPX_print(const char *restrict format, ...) {
     int res1, res2;
     va_list ap;

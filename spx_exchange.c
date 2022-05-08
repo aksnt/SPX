@@ -22,23 +22,27 @@ char received_msg[FIFO_LIMIT];
 char *sent_msg;
 char rec_order[ORDER_SIZE_LIMIT];
 pid_t children[FIFO_LIMIT];
+char **words;
+int num_words;
+
+void check_order(int trader_id) {
+    words = get_order(read_from_trader(trader_id), &num_words);
+    printf("[T%d] Parsing command: <%s>", trader_id, read_from_trader(trader_id));
+    // if (strcmp(words[0], "BUY") == 0) {
+    // }
+}
 
 void sig_handle(int sig) {
     // get message/order
     // READ till ;
     // Parse input and print it (logic happens here)
-    char **words;
-    int num_words = 0;
 
     if (sig == SIGUSR1) {
         for (int i = 0; i < num_products; i++) {
-            words = get_order(read_from_trader(i), &num_words);
-            printf("[T%d] Parsing command: <%s>", i, read_from_trader(i));
-            if (strcmp(words[0], "BUY") == 0) {
-                sent_msg = "ACCEPTED;";
-                write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);
-                kill(children[i], SIGUSR1);
-            }
+            check_order(i);
+            sent_msg = "ACCEPTED;";
+            write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);
+            kill(children[i], SIGUSR1);
         }
     }
 }

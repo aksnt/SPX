@@ -41,10 +41,11 @@ void sig_handle(int sig) {
 
     if (sig == SIGUSR1) {
         for (int i = 0; i < num_traders; i++) {
+            printf("caught\n");
             // check_order(i);
-            sent_msg = "ACCEPTED;";
-            write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);
-            kill(children[i], SIGUSR1);
+            // sent_msg = "ACCEPTED;";
+            // write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);
+            // kill(children[i], SIGUSR1);
         }
     }
 }

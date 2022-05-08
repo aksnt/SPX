@@ -42,7 +42,7 @@ void sig_handle(int sig) {
     if (sig == SIGUSR1) {
         for (int i = 0; i < num_traders; i++) {
             printf("caught\n");
-            check_order(i);
+            // check_order(i);
             printf("caught-after check\n");
             char* send_msg = "ACCEPTED;";
             write(exchange_fd[i], send_msg, strlen(send_msg) + 1);

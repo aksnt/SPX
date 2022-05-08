@@ -28,7 +28,6 @@ void sig_handle(int sig) {
     // READ till ;
     // Parse input and print it (logic happens here)
     char **words;
-    char *msg;
     int num_words = 0;
 
     if (sig == SIGUSR1) {

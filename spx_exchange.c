@@ -28,10 +28,10 @@ char **words;
 int num_words;
 
 void check_order(int trader_id) {
-    // words = get_order(read_from_trader(trader_id), &num_words);
-    printf("[T%d] Parsing command: <%s>", trader_id, read_from_trader(trader_id));
-    // if (strcmp(words[0], "BUY") == 0) {
-    // }
+    words = get_order(read_from_trader(trader_id), &num_words);
+    SPX_print("[T%d] Parsing command: <%s>", trader_id, read_from_trader(trader_id));
+    //add to orderbook
+    
 }
 
 void sig_handle(int sig) {
@@ -41,9 +41,7 @@ void sig_handle(int sig) {
 
     if (sig == SIGUSR1) {
         for (int i = 0; i < num_traders; i++) {
-            printf("caught\n");
-            // check_order(i);
-            printf("caught-after check\n");
+            check_order(i);
             sent_msg = "ACCEPTED 0;";
             write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);
             kill(children[i], SIGUSR1);

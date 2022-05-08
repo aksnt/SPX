@@ -8,4 +8,3 @@ all: $(BINARIES)
 .PHONY: clean
 clean:
 	rm -f $(BINARIES)
-

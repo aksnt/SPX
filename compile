@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# rm spx_exchange trader_a trader_b #trader_c
+# gcc spx_trader.c -o trader_a -g #-fsanitize=address
+# gcc spx_trader.c -o trader_b  -g #-fsanitize=address
+#gcc spx_trader.c utility.c -o trader_c  -g #-fsanitize=address
+gcc spx_exchange.c -o spx_exchange -g #-fsanitize=address

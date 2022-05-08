@@ -33,8 +33,11 @@ void sig_handle(int sig) {
     if (sig == SIGUSR1) {
         for (int i = 0; i < num_products; i++) {
             words = get_order(read_from_trader(i), &num_words);
-                if (strcmp(words[0], "BUY") == 0) {
-                printf("caught-exchange\n");
+            printf("[T%d] Parsing command: <%s>", i, read_from_trader(i));
+            if (strcmp(words[0], "BUY") == 0) {
+                sent_msg = "ACCEPTED;";
+                write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);
+                kill(children[i], SIGUSR1);
             }
         }
     }

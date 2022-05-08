@@ -8,3 +8,6 @@ all: $(BINARIES)
 .PHONY: clean
 clean:
 	rm -f $(BINARIES)
+push: 
+	git commit - am " -AUTO- `date` " || true
+	git push || true

@@ -13,6 +13,8 @@ char **get_order(char *line, int *num_words);
 char *read_from_trader(int trader_id);
 
 int num_products;
+int num_traders;
+
 char **products;
 int *exchange_fd;
 int *trader_fd;
@@ -38,8 +40,8 @@ void sig_handle(int sig) {
     // Parse input and print it (logic happens here)
 
     if (sig == SIGUSR1) {
-        for (int i = 0; i < num_products; i++) {
-            check_order(i);
+        for (int i = 0; i < num_traders; i++) {
+            // check_order(i);
             sent_msg = "ACCEPTED;";
             write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);
             kill(children[i], SIGUSR1);
@@ -70,7 +72,7 @@ int main(int argc, char **argv) {
     printf("\n");
 
     // FIFO: Begin
-    int num_traders = argc - 2;
+    num_traders = argc - 2;
     exchange_fd = malloc(sizeof(int) * num_traders);
     trader_fd = malloc(sizeof(int) * num_traders);
     exchange_fifo = malloc(sizeof(char *) * num_traders);

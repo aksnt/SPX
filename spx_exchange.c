@@ -44,9 +44,8 @@ void sig_handle(int sig) {
             printf("caught\n");
             // check_order(i);
             printf("caught-after check\n");
-            char* send_msg = "ACCEPTED;";
-            write(exchange_fd[i], send_msg, strlen(send_msg) + 1);
-            printf("caught-before kill\n");
+            sent_msg = "ACCEPTED 0;";
+            write(exchange_fd[i], sent_msg, strlen(sent_msg) + 1);
             kill(children[i], SIGUSR1);
         }
     }

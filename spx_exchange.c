@@ -484,6 +484,12 @@ void sig_handle(int sig) {
 
 void sig_chld(int sig) {
     sigchld = 1;
+    while (sigchld) {
+        SPX_print("Trader [0] disconnected\n");
+        SPX_print("Trading completed\n");
+        SPX_print("Exchange fees collected: $0\n");
+        sigchld = 0;
+    }
 }
 
 char *read_from_trader(int trader_id) {
@@ -502,7 +508,7 @@ int main(int argc, char **argv) {
 
     buybook = (order **)malloc(sizeof(order *) * num_products);
     sellbook = (order **)malloc(sizeof(order *) * num_products);
-    matchbook = (int ***)malloc(sizeof(int **) * num_products * num_traders);
+    // matchbook = (int ***)malloc(sizeof(int **) * num_products * num_traders);
 
     SPX_print("Trading %d products:", num_products);
     for (int i = 0; i < num_products; ++i) {
@@ -574,20 +580,15 @@ int main(int argc, char **argv) {
     usleep(1);
     // While loop checking how many SIGCHLDs signals received, if == num_traders -> calc fees
     // If any SIGCHLD received --> disconnect the child and trader that sent it
-    while (sigchld) {
-        SPX_print("Trader [0] disconnected\n");
-        SPX_print("Trading completed\n");
-        SPX_print("Exchange fees collected: $0\n");
-        sigchld = 0;
-    }
 
     // Free products memory
     for (int i = 0; i < num_products; i++) {
         free(products[i]);
+        free(buybook[i]);
+        free(sellbook[i]);
     }
 
     free(products);
-
 
     for (int i = 0; i < num_traders; i++) {
         // Free memory for FIFOs
@@ -605,7 +606,6 @@ int main(int argc, char **argv) {
     free(trader_fd);
     free(exchange_fifo);
     free(trader_fifo);
-    
 
     return 0;
 }

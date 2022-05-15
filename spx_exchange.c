@@ -485,7 +485,7 @@ void sig_handle(int sig) {
 void sig_chld(int sig) {
     sigchld = 1;
     while (sigchld) {
-        SPX_print("Trader [0] disconnected\n");
+        SPX_print("Trader 0 disconnected\n");
         SPX_print("Trading completed\n");
         SPX_print("Exchange fees collected: $0\n");
         sigchld = 0;
@@ -584,8 +584,8 @@ int main(int argc, char **argv) {
     // Free products memory
     for (int i = 0; i < num_products; i++) {
         free(products[i]);
-        free(buybook[i]);
-        free(sellbook[i]);
+        // free(buybook[i]);
+        // free(sellbook[i]);
     }
 
     free(products);

@@ -671,10 +671,10 @@ int main(int argc, char **argv) {
 				children[i] = res;  // stores the process ID of each trader
 
 				exchange_fd[i] = open(exchange_fifo[i], O_WRONLY);
-				SPX_print("Connected to %s\n", exchange_fifo[i]);
+				SPX_print(" Connected to %s\n", exchange_fifo[i]);
 
 				trader_fd[i] = open(trader_fifo[i], O_RDONLY);
-				SPX_print("Connected to %s\n", trader_fifo[i]);
+				SPX_print(" Connected to %s\n", trader_fifo[i]);
 				usleep(1);  // ensures each trader fd has time to setup properly
 		  }
 	 }

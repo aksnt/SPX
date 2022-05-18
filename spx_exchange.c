@@ -246,6 +246,7 @@ int find_and_remove(char *order_line, int trader_id, int returns[]) {
             }
             prev = buyptr;
             buyptr = buyptr->next;
+
         }
     }
 
@@ -283,11 +284,11 @@ void signal_accepted(int trader_id, int order_id, char *order_type, int pidx, in
         if (j == trader_id) {
             char msg[FIFO_LIMIT];
             sprintf(msg, ACCEPTED, order_id);
-            write(exchange_fd[j], msg, strlen(msg) + 1);
+            write(exchange_fd[j], msg, strlen(msg));
         } else {
             char msg2[FIFO_LIMIT];
             sprintf(msg2, MARKET, order_type, products[pidx], qty, price);
-            write(exchange_fd[j], msg2, strlen(msg2) + 1);
+            write(exchange_fd[j], msg2, strlen(msg2));
         }
         // signal traders in both cases with their respective message
         kill(children[j], SIGUSR1);

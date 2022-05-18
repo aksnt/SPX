@@ -40,7 +40,7 @@ void print_positions() {
 	 SPX_print("\t--POSITIONS--\n");
 
 	 for (int tdx = 0; tdx < num_traders; tdx++) {
-		  SPX_print("\t Trader %d: ", tdx);
+		  SPX_print("\tTrader %d: ", tdx);
 
 		  for (int pidx = 0, count = num_products; pidx < num_products; ++pidx, --count) {
 				printf("%s ", products[pidx]);
@@ -578,7 +578,7 @@ char *read_from_trader(int trader_id) {
 }
 
 void write_to_trader(int trader_id, char *message) {
-	 write(exchange_fd[trader_id], message, strlen(message) + 1);
+	 write(exchange_fd[trader_id], message, strlen(message));
 	 kill(children[trader_id], SIGUSR1);
 }
 
@@ -685,7 +685,7 @@ int main(int argc, char **argv) {
 	 }
 
 	 // event loop
-	 while (sigchld < num_traders) {
+	 while (sigchld <= num_traders) {
 		  if (!sigusr1) {
 				if (child_idx != -1) {
 					 SPX_print(" Trader %d disconnected\n", child_idx);

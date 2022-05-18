@@ -6,7 +6,6 @@
 #define _DEFAULT_SOURCE
 
 #include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
@@ -15,8 +14,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <stdarg.h>
 #include <math.h>
-
 
 #define FIFO_EXCHANGE "/tmp/spx_exchange_%d"
 #define FIFO_TRADER "/tmp/spx_trader_%d"
@@ -25,8 +24,13 @@
 #define FIFO_LIMIT 80
 #define ORDER_SIZE_LIMIT 50
 #define MAX_ORDER 4
+#define VALUE 0
+#define QUANTITY 1
 #define BUYBOOK 0
 #define SELLBOOK 1
-
+#define ACCEPTED "ACCEPTED %d;"
+#define AMENDED "AMENDED %d;"
+#define CANCELLED "CANCELLED %d;"
+#define MARKET "MARKET %s %s %d %d;"
 
 #endif

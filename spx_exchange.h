@@ -20,7 +20,6 @@ struct order {
     int flag; //For orderbook printing purposes, if flag = 1 ignore when printing
 
     order* next;
-
 };
 
 #endif

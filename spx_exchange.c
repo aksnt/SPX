@@ -35,7 +35,7 @@ char received_msg[ORDER_SIZE_LIMIT];
 int *exchange_fd;
 int *trader_fd;
 
-pid_t children[FIFO_LIMIT];
+pid_t *children;
 
 void signal_handler(int sig, siginfo_t *sinfo, void *context) {
     if (sig == SIGUSR1) {
@@ -87,6 +87,8 @@ int main(int argc, char **argv) {
 
     sigaction(SIGUSR1, &sa, NULL);  // handle SIGUSR1
     sigaction(SIGCHLD, &sa, NULL);  // handle SIGCHLD
+
+    children = malloc(sizeof(pid_t)*num_traders);
 
     for (int i = 0; i < num_traders; ++i) {
         exchange_fifo[i] = malloc(sizeof(char) * FIFO_LIMIT);
@@ -154,7 +156,6 @@ int main(int argc, char **argv) {
             if (!add_order(buf, trader_idx))
                 break;
 
-            // if adding order was successful, then we:
             // Attempt to match positions
             match_positions();
 
@@ -214,6 +215,7 @@ int main(int argc, char **argv) {
     free(trader_fd);
     free(exchange_fifo);
     free(trader_fifo);
+    free(children);
 
     return 0;
 }
@@ -378,10 +380,16 @@ void match_positions() {
                     matchbook[SID][i][QUANTITY] += -sell_qty;
 
                     // remove the order from orderbook as it is fulfilled
-                    remove_buybook(i);
-                    buyptr = NULL;
-                    remove_sellbook(i);
-                    sellptr = NULL;
+                    order *buy_head = buybook[i];
+                    buybook[i] = (buybook[i])->next;
+                    free(buy_head);  // free memory allocated
+                    buyptr = buybook[i];
+
+                    order *sell_head = sellbook[i];
+                    sellbook[i] = (sellbook[i])->next;
+                    free(sell_head);
+                    sellptr = sellbook[i];
+
                 }
                 if (buy_qty > sell_qty) {
                     // delete the sell order and modify buy order
@@ -434,10 +442,9 @@ void match_positions() {
 
                 trading_fees += round(fee);
                 signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
+            } else {
+                break;
             }
-
-            // buyptr = (buyptr)->next;
-            // sellptr = (sellptr)->next;
         }
     }
 }
@@ -616,6 +623,7 @@ int add_order(char *order_line, int trader_id) {
     new_order->quantity = atoi(strtok(NULL, " "));
     new_order->price = atoi(strtok(NULL, " "));
     new_order->trader_id = trader_id;
+    new_order->flag = 0;
 
     if (invalid_order(order_type, new_order, pidx)) {
         // write to trader that order is invalid
@@ -634,14 +642,13 @@ int add_order(char *order_line, int trader_id) {
         signal_accepted(trader_id, new_order->order_id,
                         order_type, pidx, new_order->quantity, new_order->price);
     }
-    // Insert in order of price -> according to buy or sell
 
+    // Insert in order of price -> according to buy or sell
     if (do_buy) {
         // Insert into buy book from highest to lowest
         if (!buybook[pidx] || (buybook[pidx])->price > new_order->price) {
             new_order->next = buybook[pidx];
             buybook[pidx] = new_order;
-
         } else {
             order *cursor = buybook[pidx];
             while (cursor->next && (cursor->next->price < new_order->price)) {
@@ -707,120 +714,139 @@ void print_orderbook() {
                   products[i], buy, sell);
 
         /* The following declares needed variables and then prints the orderbook */
-        int buy_qty = 0;
-        int sell_qty = 0;
         int num_buy = 1;
         int num_sell = 1;
-        if ((buyptr) && (sellptr)) {
+        int buy_qty = 0;
+        int sell_qty = 0;
+
+        if (buyptr)
             buy_qty = buyptr->quantity;
+        if (sellptr)
             sell_qty = sellptr->quantity;
-        }
 
-        while ((buyptr) && (sellptr)) {
-            if (buyptr->next)
-                if ((buyptr)->price == (buyptr->next)->price) {
-                    buy_qty += (buyptr->next)->quantity;
-                    num_buy++;
-                    (buyptr)->flag = 1;  // flag as duplicate as to not reprint below
-                }
-            if (sellptr->next)
-                if ((sellptr)->price == (sellptr->next)->price) {
-                    sell_qty += (sellptr->next)->quantity;
-                    num_sell++;
-                    (sellptr)->flag = 1;
-                }
+        // Go through all orders and mark flags
+        if (buyptr && !sellptr) {  // only have buy orders
 
-            if ((buyptr)->price > (sellptr)->price) {
-                // print buy orders that are not flagged
-                if (!(buyptr)->flag) {
-                    if (num_buy > 1) {
-                        SPX_print("\t\tBUY %d @ $%d (%d orders)\n", buy_qty,
-                                  (buyptr)->price, num_buy);
-                        num_buy = 1;
-                    } else if (num_buy == 1) {
-                        SPX_print("\t\tBUY %d @ $%d (%d order)\n", buy_qty,
-                                  (buyptr)->price, num_buy);
-                    }
-                }
-
-                buyptr = (buyptr)->next;
-            }
-
-            if ((buyptr)->price < (sellptr)->price) {
-                // print sell orders that are not flagged
-                if (!(sellptr)->flag) {
-                    if (num_sell > 1) {
-                        SPX_print("\t\tSELL %d @ $%d (%d orders)\n", sell_qty,
-                                  (sellptr)->price, num_sell);
-                        num_sell = 1;
-                    } else if (num_sell == 1) {
-                        SPX_print("\t\tSELL %d @ $%d (%d order)\n", sell_qty,
-                                  (sellptr)->price, num_sell);
-                    }
-                }
-                sellptr = (sellptr)->next;
-            }
-        }
-
-        if (buyptr && !sellptr) {
-            // print remaining buy orders
-            buy_qty = (buyptr)->quantity;
-            num_buy = 1;
             while (buyptr) {
-                if (!(buyptr)->next && num_buy > 1) {
-                    SPX_print("\t\tBUY %d @ $%d (%d orders)\n", buy_qty,
-                              (buyptr)->price, num_buy);
-                } else if (!(buyptr)->next && num_buy == 1) {
-                    SPX_print("\t\tBUY %d @ $%d (%d order)\n", buy_qty,
-                              (buyptr)->price, num_buy);
-                } else {
-                    if ((buyptr)->price == buyptr->next->price) {
-                        buy_qty += (buyptr->next)->quantity;
-                        num_buy++;
-                        (buyptr)->flag = 1;
-                    }
-                    if (!(buyptr)->flag) {
-                        if (num_buy > 1) {
-                            SPX_print("\t\tBUY %d @ $%d (%d orders)\n", buy_qty,
-                                      (buyptr)->price, num_buy);
-                        } else if (num_buy == 1) {
-                            SPX_print("\t\tBUY %d @ $%d (%d order)\n", (buyptr)->quantity,
-                                      (buyptr)->price, num_buy);
+                if (buyptr->next) {  // If there is a next order, check it
+                    order *cursor = buyptr;
+                    while (cursor->next) {
+                        if (cursor->price == cursor->next->price) {
+                            cursor->next->flag = 1;  // it is a duplicate
+                            buy_qty += cursor->next->quantity;
+                            num_buy++;
+                            cursor = cursor->next;
+                        } else {
+                            break;
                         }
+                    }
+                }
+
+                if (num_buy == 1) {
+                    if (!buyptr->flag) {
+                        SPX_print("\t\tBUY %d @ $%d (1 order)\n", buy_qty, buyptr->price);
+                    }
+                } else {
+                    if (!buyptr->flag) {
+                        SPX_print("\t\tBUY %d @ $%d (%d orders)\n", buy_qty, buyptr->price, num_buy);
+                        num_buy = 1;
                     }
                 }
                 buyptr = buyptr->next;
+                if (buyptr)
+                    buy_qty = buyptr->quantity;
             }
         }
-        if (!buyptr && sellptr) {
-            // print remaining sell orders
-            sell_qty = sellptr->quantity;
-            num_sell = 1;
+
+        if (!buyptr && sellptr) {  // only have sell orders
             while (sellptr) {
-                if (!(sellptr)->next && num_sell > 1) {
-                    SPX_print("\t\tSELL %d @ $%d (%d orders)\n", sell_qty,
-                              (sellptr)->price, num_sell);
-                } else if (!(sellptr)->next && num_sell == 1) {
-                    SPX_print("\t\tSELL %d @ $%d (%d order)\n", sell_qty,
-                              (sellptr)->price, num_sell);
-                } else {
-                    if ((sellptr)->price == (sellptr->next)->price) {
-                        sell_qty += (sellptr->next)->quantity;
-                        num_sell++;
-                        (sellptr)->flag = 1;
-                    }
-                    if (!(sellptr)->flag) {
-                        if (num_sell > 1) {
-                            SPX_print("\t\tSELL %d @ $%d (%d orders)\n", sell_qty,
-                                      (sellptr)->price, num_sell);
-                            num_sell = 1;
-                        } else if (num_sell == 1) {
-                            SPX_print("\t\tSELL %d @ $%d (%d order)\n", sell_qty,
-                                      (sellptr)->price, num_sell);
+                if (sellptr->next) {  // If there is a next order, check it
+                    order *cursor = sellptr;
+                    while (cursor->next) {
+                        if (cursor->price == cursor->next->price) {
+                            cursor->next->flag = 1;  // it is a duplicate
+                            sell_qty += cursor->next->quantity;
+                            num_sell++;
+                            cursor = cursor->next;
+                        } else {
+                            break;
                         }
                     }
                 }
-                sellptr = (sellptr)->next;
+                if (num_sell == 1) {
+                    if (!sellptr->flag) {
+                        SPX_print("\t\tSELL %d @ $%d (1 order)\n", sell_qty, sellptr->price);
+                    }
+                } else {
+                    if (!sellptr->flag) {
+                        SPX_print("\t\tSELL %d @ $%d (%d orders)\n", sell_qty, sellptr->price, num_sell);
+                        num_sell = 1;
+                    }
+                }
+                sellptr = sellptr->next;
+                if (sellptr)
+                    sell_qty = sellptr->quantity;
+            }
+        }
+
+        if (buyptr && sellptr) {  // print sell first
+            while (sellptr) {
+                if (sellptr->next) {  // If there is a next order, check it
+                    order *cursor = sellptr;
+                    while (cursor->next) {
+                        if (cursor->price == cursor->next->price) {
+                            cursor->next->flag = 1;  // it is a duplicate
+                            sell_qty += cursor->next->quantity;
+                            num_sell++;
+                            cursor = cursor->next;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                if (num_sell == 1) {
+                    if (!sellptr->flag) {
+                        SPX_print("\t\tSELL %d @ $%d (1 order)\n", sell_qty, sellptr->price);
+                    }
+                } else {
+                    if (!sellptr->flag) {
+                        SPX_print("\t\tSELL %d @ $%d (%d orders)\n", sell_qty, sellptr->price, num_sell);
+                        num_sell = 1;
+                    }
+                }
+                sellptr = sellptr->next;
+                if (sellptr)
+                    sell_qty = sellptr->quantity;
+            }
+
+            while (buyptr) {
+                if (buyptr->next) {  // If there is a next order, check it
+                    order *cursor = buyptr;
+                    while (cursor->next) {
+                        if (cursor->price == cursor->next->price) {
+                            cursor->next->flag = 1;  // it is a duplicate
+                            buy_qty += cursor->next->quantity;
+                            num_buy++;
+                            cursor = cursor->next;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                if (num_buy == 1) {
+                    if (!buyptr->flag) {
+                        SPX_print("\t\tBUY %d @ $%d (1 order)\n", buy_qty, buyptr->price);
+                    }
+                } else {
+                    if (!buyptr->flag) {
+                        SPX_print("\t\tBUY %d @ $%d (%d orders)\n", buy_qty, buyptr->price, num_buy);
+                        num_buy = 1;
+                    }
+                }
+                buyptr = buyptr->next;
+                if (buyptr)
+                    buy_qty = buyptr->quantity;
             }
         }
     }

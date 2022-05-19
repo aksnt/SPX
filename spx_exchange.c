@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
     sigaction(SIGUSR1, &sa, NULL);  // handle SIGUSR1
     sigaction(SIGCHLD, &sa, NULL);  // handle SIGCHLD
 
-    children = malloc(sizeof(pid_t)*num_traders);
+    children = malloc(sizeof(pid_t) * num_traders);
 
     for (int i = 0; i < num_traders; ++i) {
         exchange_fifo[i] = malloc(sizeof(char) * FIFO_LIMIT);
@@ -349,15 +349,14 @@ void match_positions() {
         int buy_qty = (buybook[i])->quantity;
         int sell_qty = (sellbook[i])->quantity;
 
+        int BID = 0;
+        int order_BID = 0;
+        int SID = 0;
+        int order_SID = 0;
         // While both books have orders, we attempt to match
         while (buyptr && sellptr) {
             int value = 0;
             double fee = 0;
-
-            int BID = 0;
-            int order_BID = 0;
-            int SID = 0;
-            int order_SID = 0;
 
             if (buy_price >= sell_price) {
                 // execute order
@@ -389,7 +388,6 @@ void match_positions() {
                     sellbook[i] = (sellbook[i])->next;
                     free(sell_head);
                     sellptr = sellbook[i];
-
                 }
                 if (buy_qty > sell_qty) {
                     // delete the sell order and modify buy order
@@ -441,10 +439,10 @@ void match_positions() {
                           order_BID, BID, order_SID, SID, value, round(fee));
 
                 trading_fees += round(fee);
-                signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
             } else {
                 break;
             }
+            signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
         }
     }
 }
@@ -727,7 +725,7 @@ void print_orderbook() {
         // Go through all orders and mark flags
         if (buyptr && !sellptr) {  // only have buy orders
             while (buyptr) {
-                if (buyptr->next) { // If there is a next order, check it
+                if (buyptr->next) {  // If there is a next order, check it
                     order *cursor = buyptr;
                     while (cursor->next) {
                         if (cursor->price == cursor->next->price) {

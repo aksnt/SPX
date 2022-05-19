@@ -6,9 +6,6 @@
 #define LOG_PREFIX "[SPX]"
 #define VALID_ORDER_SIZE 5
 
-// move to seperate header later
-int read_products(char* path, int* num_products, char*** products);
-
 typedef struct order order;
 
 struct order {
@@ -21,5 +18,7 @@ struct order {
 
     order* next;
 };
+
+int invalid_order(char *order_type, order *new_order, int pidx);
 
 #endif

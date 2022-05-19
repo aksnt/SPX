@@ -5,6 +5,9 @@
 
 #define _DEFAULT_SOURCE
 
+#include "functions.h"
+#include "utility.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,7 +17,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <stdarg.h>
 #include <math.h>
 
 #define FIFO_EXCHANGE "/tmp/spx_exchange_%d"
@@ -32,5 +34,8 @@
 #define AMENDED "AMENDED %d;"
 #define CANCELLED "CANCELLED %d;"
 #define MARKET "MARKET %s %s %d %d;"
+#define FILL "FILL %d %d;"
+
+int SPX_print(const char *restrict format, ...);
 
 #endif

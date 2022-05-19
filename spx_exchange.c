@@ -6,6 +6,8 @@
 
 #include "spx_exchange.h"
 
+#include "spx_common.h"
+
 int SPX_print(const char *restrict format, ...);
 char *get_message(char *input);
 int number_orders(char *line);
@@ -24,23 +26,273 @@ order **sellbook = NULL;  // sell orderbook
 int ***matchbook;         // stores matched orders for each trader
 
 // Global signal variables
-volatile sig_atomic_t sigusr1;     // flag variable for logic
-volatile sig_atomic_t sigchld;     // counts children
-volatile sig_atomic_t trader_idx;  // stores trader index given by sending process
-volatile sig_atomic_t child_idx = -1;
+volatile sig_atomic_t sigusr1;         // flag variable for logic
+volatile sig_atomic_t sigchld;         // counts children
+volatile sig_atomic_t trader_idx;      // stores trader index given by sending process
+volatile sig_atomic_t child_idx = -1;  // stores trader id of child that sent SIGCHLD
 
 char received_msg[ORDER_SIZE_LIMIT];
-
 int *exchange_fd;
 int *trader_fd;
 
 pid_t children[FIFO_LIMIT];
 
+void signal_handler(int sig, siginfo_t *sinfo, void *context) {
+    if (sig == SIGUSR1) {
+        sigusr1 = 1;  // set flag to true
+        trader_idx = get_PID(sinfo->si_pid);
+    }
+    if (sig == SIGCHLD) {
+        sigchld++;  // increment to count traders disconnected
+        child_idx = get_PID(sinfo->si_pid);
+    }
+}
+
+int main(int argc, char **argv) {
+    SPX_print(" Starting\n");
+    read_products(argv[1], &num_products, &products);
+
+    // initialise total traders
+    num_traders = argc - 2;
+
+    // allocate memory for all 3 books
+    buybook = (order **)calloc(num_products, sizeof(order *));
+    sellbook = (order **)calloc(num_products, sizeof(order *));
+    matchbook = (int ***)malloc(sizeof(int **) * num_traders);
+
+    // allocate memory for all dimensions of matchbook
+    for (int i = 0; i < num_traders; i++) {
+        matchbook[i] = (int **)calloc(num_products, sizeof(int *));
+        for (int j = 0; j < num_products; j++)
+            matchbook[i][j] = (int *)calloc(2, sizeof(int));
+    }
+
+    SPX_print(" Trading %d products:", num_products);
+    for (int i = 0; i < num_products; ++i) {
+        printf(" %s", products[i]);
+    }
+    printf("\n");
+
+    // FIFO: Begin
+    exchange_fd = malloc(sizeof(int) * num_traders);
+    trader_fd = malloc(sizeof(int) * num_traders);
+    char **exchange_fifo = malloc(sizeof(char *) * num_traders);
+    char **trader_fifo = malloc(sizeof(char *) * num_traders);
+
+    // Signal handlers
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(struct sigaction));
+    sa.sa_sigaction = &signal_handler;
+    sa.sa_flags = SA_SIGINFO;
+
+    sigaction(SIGUSR1, &sa, NULL);  // handle SIGUSR1
+    sigaction(SIGCHLD, &sa, NULL);  // handle SIGCHLD
+
+    for (int i = 0; i < num_traders; ++i) {
+        exchange_fifo[i] = malloc(sizeof(char) * FIFO_LIMIT);
+        trader_fifo[i] = malloc(sizeof(char) * FIFO_LIMIT);
+        sprintf(exchange_fifo[i], FIFO_EXCHANGE, i);
+        sprintf(trader_fifo[i], FIFO_TRADER, i);
+
+        // Make FIFOs
+        unlink(exchange_fifo[i]);  // deletes any prior FIFOs
+        if (mkfifo(exchange_fifo[i], 0666) == -1) {
+            printf("ERROR: Failed to create FIFO /tmp/spx_exchange_%d", i);
+        }
+        SPX_print(" Created FIFO %s\n", exchange_fifo[i]);
+
+        unlink(trader_fifo[i]);
+        if (mkfifo(trader_fifo[i], 0666) == -1) {
+            printf("ERROR: Failed to create FIFO /tmp/spx_trader_%d", i);
+        }
+        SPX_print(" Created FIFO %s\n", trader_fifo[i]);
+
+        SPX_print(" Starting trader %d (%s)\n", i, argv[2 + i]);
+
+        // Start each trader as a child process
+        pid_t res = fork();
+        if (res == 0) {
+            // Inside child process
+            char trader_id[FIFO_LIMIT];
+            sprintf(trader_id, "%d", i);
+            char *args[] = {argv[2 + i], trader_id, NULL};
+
+            execvp(argv[2 + i], args);
+            exit(0);
+        } else {
+            // Inside parent process
+            children[i] = res;  // stores the process ID of each trader
+
+            exchange_fd[i] = open(exchange_fifo[i], O_WRONLY);
+            SPX_print(" Connected to %s\n", exchange_fifo[i]);
+
+            trader_fd[i] = open(trader_fifo[i], O_RDONLY);
+            SPX_print(" Connected to %s\n", trader_fifo[i]);
+
+            usleep(1);  // ensures each trader fd has time to setup properly
+        }
+    }
+
+    // send market open to all traders
+    for (int i = 0; i < num_traders; i++)
+        write_to_trader(i, "MARKET OPEN;");
+
+    // event loop
+    while (sigchld < num_traders) {
+        if (child_idx != -1) {
+            SPX_print(" Trader %d disconnected\n", child_idx);
+            child_idx = -1;  // reset flag
+        }
+        if (!sigusr1)
+            pause();
+        else {
+            // Parse in the order
+            char *buf = read_from_trader(trader_idx);
+            SPX_print(" [T%d] Parsing command: <%s>\n", trader_idx, buf);
+
+            // Add the order to the orderbook, if invalid then break
+            if (!add_order(buf, trader_idx))
+                break;
+
+            // if adding order was successful, then we:
+            // Attempt to match positions
+            match_positions();
+
+            // Print orderbook
+            print_orderbook();
+
+            // Print positions
+            print_positions();
+
+            // reset flag
+            sigusr1 = 0;
+        }
+    }
+
+    // Trading is now compelete
+    if (sigchld == 1) {  // only one trader thus first if condition does not run
+        if (child_idx != -1)
+            SPX_print(" Trader %d disconnected\n", child_idx);
+    }
+    SPX_print(" Trading completed\n");
+    SPX_print(" Exchange fees collected: $%d\n", trading_fees);
+
+    /* TEARDOWN OPERATIONS */
+
+    //  Free products and books memory
+    for (int i = 0; i < num_products; i++) {
+        free(products[i]);
+        free(buybook[i]);
+        free(sellbook[i]);
+    }
+    free(products);
+    free(buybook);
+    free(sellbook);
+
+    // Free matchbook memory
+    for (int i = 0; i < num_traders; i++) {
+        for (int j = 0; j < num_products; j++) {
+            free(matchbook[i][j]);
+        }
+        free(matchbook[i]);
+    }
+    free(matchbook);
+
+    // Safetely cleanup and free memory for FIFOs
+    for (int i = 0; i < num_traders; i++) {
+        unlink(exchange_fifo[i]);
+        unlink(trader_fifo[i]);
+
+        free(exchange_fifo[i]);
+        free(trader_fifo[i]);
+
+        // Close all fd
+        close(exchange_fd[i]);
+        close(trader_fd[i]);
+    }
+    free(exchange_fd);
+    free(trader_fd);
+    free(exchange_fifo);
+    free(trader_fifo);
+
+    return 0;
+}
+
+int SPX_print(const char *restrict format, ...) {
+    int res1, res2;
+    va_list ap;
+    res1 = printf("[SPX]");
+    if (res1 < 0)
+        return res1;
+
+    va_start(ap, format);
+    res2 = vprintf(format, ap);
+    va_end(ap);
+    return res2 < 0 ? res2 : res1 + res2;
+}
+
+char *get_message_e(char *input) {
+    int delimiter = 0;
+    for (int i = 0; i < strlen(input) + 1; ++i)
+        if (input[i] == ';') {
+            delimiter = i;
+            break;
+        }
+
+    input[delimiter] = '\0';
+    return input;
+}
+
+int num_words(char *line) {
+    int len_line = strlen(line);
+    int num_orders = 0;
+
+    char is_last_char_space = 1;
+
+    // for each word
+    for (int line_i = 0; line_i < len_line - 1; line_i++) {
+        if (line[line_i] == ';')
+            is_last_char_space = 1;
+        else {
+            if (is_last_char_space)
+                num_orders++;
+
+            is_last_char_space = 0;
+        }
+    }
+    return num_orders;
+}
+
+int read_products(char *path, int *num_products, char ***products) {
+    FILE *file;
+
+    file = fopen(path, "r");
+    if (file == NULL) {
+        return -1;
+    }
+
+    char line[PRODUCT_CHAR_LIMIT];
+    // Read the first line
+    fgets(line, PRODUCT_CHAR_LIMIT, file);
+    // Parse string line -> integer
+    *num_products = atoi(line);
+    *products = malloc(sizeof(char *) * (*num_products));
+    for (int i = 0; i < *num_products; i++) {
+        fgets(line, PRODUCT_CHAR_LIMIT, file);
+        (*products)[i] = malloc(sizeof(char) * (PRODUCT_CHAR_LIMIT + 1));
+        line[strcspn(line, "\n")] = '\0';
+        strcpy((*products)[i], line);
+    }
+
+    fclose(file);
+    return 0;
+}
+
 void print_positions() {
     SPX_print("\t--POSITIONS--\n");
 
     for (int tdx = 0; tdx < num_traders; tdx++) {
-        SPX_print("\tTrader %d: ", tdx);
+        SPX_print("\t Trader %d: ", tdx);
 
         for (int pidx = 0, count = num_products; pidx < num_products; ++pidx, --count) {
             printf("%s ", products[pidx]);
@@ -66,6 +318,17 @@ void remove_sellbook(int pidx) {
     order *head = sellbook[pidx];
     sellbook[pidx] = (sellbook[pidx])->next;
     free(head);  // free memory allocated
+}
+
+void signal_fill(int order_BID, int order_SID, int buy_qty, int sell_qty, int BID, int SID) {
+    char buyer_fill[FIFO_LIMIT];
+    char seller_fill[FIFO_LIMIT];
+
+    sprintf(buyer_fill, FILL, order_BID, sell_qty);
+    sprintf(seller_fill, FILL, order_SID, buy_qty);
+
+    write_to_trader(BID, buyer_fill);
+    write_to_trader(SID, seller_fill);
 }
 
 void match_positions() {
@@ -116,7 +379,9 @@ void match_positions() {
 
                     // remove the order from orderbook as it is fulfilled
                     remove_buybook(i);
+                    buyptr = NULL;
                     remove_sellbook(i);
+                    sellptr = NULL;
                 }
                 if (buy_qty > sell_qty) {
                     // delete the sell order and modify buy order
@@ -139,6 +404,7 @@ void match_positions() {
                     matchbook[SID][i][QUANTITY] += -sell_qty;
 
                     remove_sellbook(i);
+                    sellptr = NULL;
                 }
                 if (buy_qty < sell_qty) {
                     // delete the buy order and modify sell order
@@ -160,41 +426,43 @@ void match_positions() {
                     matchbook[SID][i][QUANTITY] += -buy_qty;
 
                     remove_buybook(i);
+                    buyptr = NULL;
                 }
 
-                SPX_print("Match: Order %d [T%d], New order: %d [T%d] value: $%d, fee: $%.0f.\n",
+                SPX_print(" Match: Order %d [T%d], New order: %d [T%d] value: $%d, fee: $%.0f.\n",
                           order_BID, BID, order_SID, SID, value, round(fee));
 
                 trading_fees += round(fee);
+                signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
             }
 
-            buyptr = (buyptr)->next;
-            sellptr = (sellptr)->next;
+            // buyptr = (buyptr)->next;
+            // sellptr = (sellptr)->next;
         }
     }
 }
 
 int invalid_order(char *order_type, order *new_order, int pidx) {
-    order **buyptr = buybook;
-    order **sellptr = sellbook;
+    order *buyptr = buybook[pidx];
+    order *sellptr = sellbook[pidx];
 
     if (strcmp(order_type, "BUY") == 0) {
-        while (buyptr[pidx]) {
-            if (new_order->order_id == (buyptr[pidx])->order_id &&
-                new_order->trader_id == (buyptr[pidx])->trader_id) {
+        while (buyptr) {
+            if (new_order->order_id == buyptr->order_id &&
+                new_order->trader_id == buyptr->trader_id) {
                 return 1;  // order already exists, invalid
             }
-            buyptr[pidx] = (buyptr[pidx])->next;
+            buyptr = buyptr->next;
         }
     }
 
     if (strcmp(order_type, "SELL") == 0) {
-        while (sellptr[pidx]) {
-            if (new_order->order_id == (sellptr[pidx])->order_id &&
-                new_order->trader_id == (sellptr[pidx])->trader_id) {
+        while (sellptr) {
+            if (new_order->order_id == sellptr->order_id &&
+                new_order->trader_id == sellptr->trader_id) {
                 return 1;  // order already exists, invalid
             }
-            sellptr[pidx] = (sellptr[pidx])->next;
+            sellptr = sellptr->next;
         }
     }
     // order doesn't exist hence, valid
@@ -283,11 +551,11 @@ void signal_accepted(int trader_id, int order_id, char *order_type, int pidx, in
         if (j == trader_id) {
             char msg[FIFO_LIMIT];
             sprintf(msg, ACCEPTED, order_id);
-            write(exchange_fd[j], msg, strlen(msg));
+            write(exchange_fd[j], msg, strlen(msg) + 1);
         } else {
             char msg2[FIFO_LIMIT];
             sprintf(msg2, MARKET, order_type, products[pidx], qty, price);
-            write(exchange_fd[j], msg2, strlen(msg2));
+            write(exchange_fd[j], msg2, strlen(msg2) + 1);
         }
         // signal traders in both cases with their respective message
         kill(children[j], SIGUSR1);
@@ -316,7 +584,6 @@ int add_order(char *order_line, int trader_id) {
     if (strcmp(order_type, "AMEND") == 0) {
         // find out which book the order is in
         find_and_remove(copy, trader_id, results);
-
         if (results[1] == 1)
             do_buy = 1;
         else if (results[1] == 2)
@@ -368,11 +635,13 @@ int add_order(char *order_line, int trader_id) {
                         order_type, pidx, new_order->quantity, new_order->price);
     }
     // Insert in order of price -> according to buy or sell
+
     if (do_buy) {
         // Insert into buy book from highest to lowest
-        if (!buybook[pidx] || (buybook[pidx])->price >= new_order->price) {
+        if (!buybook[pidx] || (buybook[pidx])->price > new_order->price) {
             new_order->next = buybook[pidx];
             buybook[pidx] = new_order;
+
         } else {
             order *cursor = buybook[pidx];
             while (cursor->next && (cursor->next->price < new_order->price)) {
@@ -424,8 +693,6 @@ int count_levels(int pidx, int flag) {
 
 void print_orderbook() {
     SPX_print("\t--ORDERBOOK--\n");
-    //[SPX]     --ORDERBOOK--
-    //[SPX]    --ORDERBOOK--
 
     int buy = 0;
     int sell = 0;
@@ -440,24 +707,28 @@ void print_orderbook() {
                   products[i], buy, sell);
 
         /* The following declares needed variables and then prints the orderbook */
-
         int buy_qty = 0;
         int sell_qty = 0;
         int num_buy = 1;
         int num_sell = 1;
+        if ((buyptr) && (sellptr)) {
+            buy_qty = buyptr->quantity;
+            sell_qty = sellptr->quantity;
+        }
 
         while ((buyptr) && (sellptr)) {
-            if ((buyptr)->price == (buyptr->next)->price) {
-                buy_qty += (buyptr)->quantity + (buyptr->next)->quantity;
-                num_buy++;
-                (buyptr)->flag = 1;  // flag as duplicate as to not reprint below
-            }
-
-            if ((sellptr)->price == (sellptr->next)->price) {
-                sell_qty += (sellptr)->quantity + (sellptr->next)->quantity;
-                num_sell++;
-                (sellptr)->flag = 1;
-            }
+            if (buyptr->next)
+                if ((buyptr)->price == (buyptr->next)->price) {
+                    buy_qty += (buyptr->next)->quantity;
+                    num_buy++;
+                    (buyptr)->flag = 1;  // flag as duplicate as to not reprint below
+                }
+            if (sellptr->next)
+                if ((sellptr)->price == (sellptr->next)->price) {
+                    sell_qty += (sellptr->next)->quantity;
+                    num_sell++;
+                    (sellptr)->flag = 1;
+                }
 
             if ((buyptr)->price > (sellptr)->price) {
                 // print buy orders that are not flagged
@@ -465,14 +736,14 @@ void print_orderbook() {
                     if (num_buy > 1) {
                         SPX_print("\t\tBUY %d @ $%d (%d orders)\n", buy_qty,
                                   (buyptr)->price, num_buy);
-                        buy_qty = 0;
                         num_buy = 1;
                     } else if (num_buy == 1) {
                         SPX_print("\t\tBUY %d @ $%d (%d order)\n", buy_qty,
                                   (buyptr)->price, num_buy);
-                        buy_qty = 0;
                     }
                 }
+
+                buyptr = (buyptr)->next;
             }
 
             if ((buyptr)->price < (sellptr)->price) {
@@ -481,66 +752,60 @@ void print_orderbook() {
                     if (num_sell > 1) {
                         SPX_print("\t\tSELL %d @ $%d (%d orders)\n", sell_qty,
                                   (sellptr)->price, num_sell);
-                        sell_qty = 0;
                         num_sell = 1;
                     } else if (num_sell == 1) {
                         SPX_print("\t\tSELL %d @ $%d (%d order)\n", sell_qty,
                                   (sellptr)->price, num_sell);
-                        sell_qty = 0;
                     }
                 }
+                sellptr = (sellptr)->next;
             }
-
-            buyptr = (buyptr)->next;
-            sellptr = (sellptr)->next;
         }
 
         if (buyptr && !sellptr) {
             // print remaining buy orders
+            buy_qty = (buyptr)->quantity;
+            num_buy = 1;
             while (buyptr) {
-                buy_qty = 0;
-                num_buy = 1;
-                if (!(buyptr)->next) {
-                    SPX_print("\t\tBUY %d @ $%d (%d order)\n", (buyptr)->quantity,
+                if (!(buyptr)->next && num_buy > 1) {
+                    SPX_print("\t\tBUY %d @ $%d (%d orders)\n", buy_qty,
                               (buyptr)->price, num_buy);
-                    buy_qty = 0;
+                } else if (!(buyptr)->next && num_buy == 1) {
+                    SPX_print("\t\tBUY %d @ $%d (%d order)\n", buy_qty,
+                              (buyptr)->price, num_buy);
                 } else {
-                    if ((buyptr)->price == (buyptr->next)->price) {
-                        buy_qty += (buyptr)->quantity + (buyptr->next)->quantity;
+                    if ((buyptr)->price == buyptr->next->price) {
+                        buy_qty += (buyptr->next)->quantity;
                         num_buy++;
                         (buyptr)->flag = 1;
                     }
-                    if ((buyptr)->price > (sellptr)->price) {
-                        if (!(buyptr)->flag) {
-                            if (num_buy > 1) {
-                                SPX_print("\t\tBUY %d @ $%d (%d orders)\n", buy_qty,
-                                          (buyptr)->price, num_buy);
-                                buy_qty = 0;
-                                num_buy = 1;
-                            } else if (num_buy == 1) {
-                                SPX_print("\t\tBUY %d @ $%d (%d order)\n", buy_qty,
-                                          (buyptr)->price, num_buy);
-                                buy_qty = 0;
-                            }
+                    if (!(buyptr)->flag) {
+                        if (num_buy > 1) {
+                            SPX_print("\t\tBUY %d @ $%d (%d orders)\n", buy_qty,
+                                      (buyptr)->price, num_buy);
+                        } else if (num_buy == 1) {
+                            SPX_print("\t\tBUY %d @ $%d (%d order)\n", (buyptr)->quantity,
+                                      (buyptr)->price, num_buy);
                         }
                     }
                 }
-                buyptr = (buyptr)->next;
+                buyptr = buyptr->next;
             }
         }
-
-        if (!(buyptr) && sellptr) {
+        if (!buyptr && sellptr) {
             // print remaining sell orders
+            sell_qty = sellptr->quantity;
+            num_sell = 1;
             while (sellptr) {
-                sell_qty = 0;
-                num_sell = 1;
-                if (!(sellptr)->next) {
-                    SPX_print("\t\tSELL %d @ $%d (%d order)\n", (sellptr)->quantity,
+                if (!(sellptr)->next && num_sell > 1) {
+                    SPX_print("\t\tSELL %d @ $%d (%d orders)\n", sell_qty,
                               (sellptr)->price, num_sell);
-                    buy_qty = 0;
+                } else if (!(sellptr)->next && num_sell == 1) {
+                    SPX_print("\t\tSELL %d @ $%d (%d order)\n", sell_qty,
+                              (sellptr)->price, num_sell);
                 } else {
                     if ((sellptr)->price == (sellptr->next)->price) {
-                        sell_qty += (sellptr)->quantity + (sellptr->next)->quantity;
+                        sell_qty += (sellptr->next)->quantity;
                         num_sell++;
                         (sellptr)->flag = 1;
                     }
@@ -548,12 +813,10 @@ void print_orderbook() {
                         if (num_sell > 1) {
                             SPX_print("\t\tSELL %d @ $%d (%d orders)\n", sell_qty,
                                       (sellptr)->price, num_sell);
-                            sell_qty = 0;
                             num_sell = 1;
                         } else if (num_sell == 1) {
                             SPX_print("\t\tSELL %d @ $%d (%d order)\n", sell_qty,
                                       (sellptr)->price, num_sell);
-                            sell_qty = 0;
                         }
                     }
                 }
@@ -573,259 +836,10 @@ int get_PID(pid_t pid) {
 
 char *read_from_trader(int trader_id) {
     read(trader_fd[trader_id], received_msg, sizeof(received_msg));
-    return get_message(received_msg);
+    return get_message_e(received_msg);
 }
 
 void write_to_trader(int trader_id, char *message) {
-    write(exchange_fd[trader_id], message, strlen(message));
+    write(exchange_fd[trader_id], message, strlen(message) + 1);
     kill(children[trader_id], SIGUSR1);
-}
-
-void signal_handler(int sig, siginfo_t *sinfo, void *context) {
-    if (sig == SIGUSR1) {
-        sigusr1 = 1;  // set flag to true
-        trader_idx = get_PID(sinfo->si_pid);
-    }
-    if (sig == SIGCHLD) {
-        sigchld++;  // increment to count traders disconnected
-        child_idx = get_PID(sinfo->si_pid);
-        if (child_idx != -1) {
-            SPX_print(" Trader %d disconnected\n", child_idx);
-            child_idx = -1;  // reset flag
-        }
-    }
-}
-
-int main(int argc, char **argv) {
-    SPX_print(" Starting\n");
-    read_products(argv[1], &num_products, &products);
-
-    // initialise total traders
-    num_traders = argc - 2;
-
-    // allocate memory for all 3 books
-    buybook = (order **)calloc(num_products, sizeof(order *));
-    sellbook = (order **)calloc(num_products, sizeof(order *));
-    matchbook = (int ***)malloc(sizeof(int **) * num_traders);
-
-    // allocate memory for all dimensions of matchbook
-    for (int i = 0; i < num_traders; i++) {
-        matchbook[i] = (int **)calloc(num_products, sizeof(int *));
-        for (int j = 0; j < num_products; j++)
-            matchbook[i][j] = (int *)calloc(2, sizeof(int));
-    }
-
-    SPX_print(" Trading %d products:", num_products);
-    for (int i = 0; i < num_products; ++i) {
-        printf(" %s", products[i]);
-    }
-    printf("\n");
-
-    // FIFO: Begin
-    exchange_fd = malloc(sizeof(int) * num_traders);
-    trader_fd = malloc(sizeof(int) * num_traders);
-    char **exchange_fifo = malloc(sizeof(char *) * num_traders);
-    char **trader_fifo = malloc(sizeof(char *) * num_traders);
-
-    // Signal handlers
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(struct sigaction));
-    sa.sa_sigaction = &signal_handler;
-    sa.sa_flags = SA_SIGINFO;
-
-    sigaction(SIGUSR1, &sa, NULL);  // handle SIGUSR1
-    sigaction(SIGCHLD, &sa, NULL);  // handle SIGCHLD
-
-    for (int i = 0; i < num_traders; ++i) {
-        exchange_fifo[i] = malloc(sizeof(char) * FIFO_LIMIT);
-        trader_fifo[i] = malloc(sizeof(char) * FIFO_LIMIT);
-        sprintf(exchange_fifo[i], FIFO_EXCHANGE, i);
-        sprintf(trader_fifo[i], FIFO_TRADER, i);
-
-        // Make FIFOs
-        unlink(exchange_fifo[i]);  // deletes any prior FIFOs
-        if (mkfifo(exchange_fifo[i], 0666) == -1) {
-            printf("ERROR: Failed to create FIFO /tmp/spx_exchange_%d", i);
-        }
-        SPX_print(" Created FIFO %s\n", exchange_fifo[i]);
-
-        unlink(trader_fifo[i]);
-        if (mkfifo(trader_fifo[i], 0666) == -1) {
-            printf("ERROR: Failed to create FIFO /tmp/spx_trader_%d", i);
-        }
-        SPX_print(" Created FIFO %s\n", trader_fifo[i]);
-
-        SPX_print(" Starting trader %d (%s)\n", i, argv[2 + i]);
-
-        // Start each trader as a child process
-        pid_t res = fork();
-        if (res == 0) {
-            // Inside child process
-
-            char trader_id[FIFO_LIMIT];
-            sprintf(trader_id, "%d", i);
-            char *args[] = {argv[2 + i], trader_id, NULL};
-
-            execvp(argv[2 + i], args);
-            exit(0);
-        } else {
-            // Inside parent process
-            children[i] = res;  // stores the process ID of each trader
-
-            exchange_fd[i] = open(exchange_fifo[i], O_WRONLY);
-            SPX_print(" Connected to %s\n", exchange_fifo[i]);
-
-            trader_fd[i] = open(trader_fifo[i], O_RDONLY);
-            SPX_print(" Connected to %s\n", trader_fifo[i]);
-            usleep(1);  // ensures each trader fd has time to setup properly
-        }
-    }
-
-    for (int i = 0; i < num_traders; i++) {
-        // sends market open to all traders
-        write_to_trader(i, "MARKET OPEN;");
-    }
-
-    // event loop
-    while (sigchld < num_traders) {
-        if (!sigusr1) {
-            pause();
-        } else {
-            // Parse in the order
-            char *buf = read_from_trader(trader_idx);
-            SPX_print(" [T%d] Parsing command: <%s>\n", trader_idx, buf);
-
-            // Add the order to the orderbook, if invalid then break
-            if (!add_order(buf, trader_idx))
-                break;
-
-            /* if adding order was successful, then we: */
-
-            // Attempt to match positions
-            match_positions();
-
-            // Print orderbook
-            print_orderbook();
-
-            // Print positions
-            print_positions();
-
-            // reset flag
-            sigusr1 = 0;
-        }
-    }
-
-    // Trading is now compelete
-    SPX_print(" Trading completed\n");
-    SPX_print(" Exchange fees collected: $%d\n", trading_fees);
-
-    /* TEARDOWN OPERATIONS */
-
-    //  Free products and books memory
-    for (int i = 0; i < num_products; i++) {
-        free(products[i]);
-        free(buybook[i]);
-        free(sellbook[i]);
-    }
-    free(products);
-    free(buybook);
-    free(sellbook);
-
-    // Free matchbook memory
-    for (int i = 0; i < num_traders; i++) {
-        for (int j = 0; j < num_products; j++) {
-            free(matchbook[i][j]);
-        }
-        free(matchbook[i]);
-    }
-    free(matchbook);
-
-    // Safetely cleanup and free memory for FIFOs
-    for (int i = 0; i < num_traders; i++) {
-        unlink(exchange_fifo[i]);
-        unlink(trader_fifo[i]);
-
-        free(exchange_fifo[i]);
-        free(trader_fifo[i]);
-
-        // Close all fd
-        close(exchange_fd[i]);
-        close(trader_fd[i]);
-    }
-    free(exchange_fd);
-    free(trader_fd);
-    free(exchange_fifo);
-    free(trader_fifo);
-
-    return 0;
-}
-
-int read_products(char *path, int *num_products, char ***products) {
-    FILE *file;
-
-    file = fopen(path, "r");
-    if (file == NULL) {
-        return -1;
-    }
-
-    char line[PRODUCT_CHAR_LIMIT];
-    // Read the first line
-    fgets(line, PRODUCT_CHAR_LIMIT, file);
-    // Parse string line -> integer
-    *num_products = atoi(line);
-    *products = malloc(sizeof(char *) * (*num_products));
-    for (int i = 0; i < *num_products; i++) {
-        fgets(line, PRODUCT_CHAR_LIMIT, file);
-        (*products)[i] = malloc(sizeof(char) * (PRODUCT_CHAR_LIMIT + 1));
-        line[strcspn(line, "\n")] = '\0';
-        strcpy((*products)[i], line);
-    }
-
-    fclose(file);
-    return 0;
-}
-
-int SPX_print(const char *restrict format, ...) {
-    int res1, res2;
-    va_list ap;
-    res1 = printf("[SPX]");
-    if (res1 < 0)
-        return res1;
-
-    va_start(ap, format);
-    res2 = vprintf(format, ap);
-    va_end(ap);
-    return res2 < 0 ? res2 : res1 + res2;
-}
-
-char *get_message(char *input) {
-    int delimiter = 0;
-    for (int i = 0; i < strlen(input) + 1; ++i)
-        if (input[i] == ';') {
-            delimiter = i;
-            break;
-        }
-
-    input[delimiter] = '\0';
-    return input;
-}
-
-int num_words(char *line) {
-    int len_line = strlen(line);
-    int num_orders = 0;
-
-    char is_last_char_space = 1;
-
-    // for each word
-    for (int line_i = 0; line_i < len_line - 1; line_i++) {
-        if (line[line_i] == ';')
-            is_last_char_space = 1;
-        else {
-            if (is_last_char_space)
-                num_orders++;
-
-            is_last_char_space = 0;
-        }
-    }
-    return num_orders;
 }

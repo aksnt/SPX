@@ -646,12 +646,12 @@ int add_order(char *order_line, int trader_id) {
     // Insert in order of price -> according to buy or sell
     if (do_buy) {
         // Insert into buy book from highest to lowest
-        if (!buybook[pidx] || (buybook[pidx])->price > new_order->price) {
+        if (!buybook[pidx] || (buybook[pidx])->price <= new_order->price) {
             new_order->next = buybook[pidx];
             buybook[pidx] = new_order;
         } else {
             order *cursor = buybook[pidx];
-            while (cursor->next && (cursor->next->price < new_order->price)) {
+            while (cursor->next && (cursor->next->price > new_order->price)) {
                 cursor = cursor->next;
             }
             new_order->next = cursor->next;
@@ -660,13 +660,13 @@ int add_order(char *order_line, int trader_id) {
 
     } else if (do_sell) {
         // Insert into sell book from lowest to highest order
-        if (!sellbook[pidx] || (sellbook[pidx])->price <= new_order->price) {
+        if (!sellbook[pidx] || (sellbook[pidx])->price >= new_order->price) {
             new_order->next = sellbook[pidx];
             sellbook[pidx] = new_order;
 
         } else {
             order *cursor = sellbook[pidx];
-            while (cursor->next && cursor->next->price > new_order->price) {
+            while (cursor->next && cursor->next->price < new_order->price) {
                 cursor = cursor->next;
             }
             new_order->next = cursor->next;
@@ -726,9 +726,8 @@ void print_orderbook() {
 
         // Go through all orders and mark flags
         if (buyptr && !sellptr) {  // only have buy orders
-
             while (buyptr) {
-                if (buyptr->next) {  // If there is a next order, check it
+                if (buyptr->next) { // If there is a next order, check it
                     order *cursor = buyptr;
                     while (cursor->next) {
                         if (cursor->price == cursor->next->price) {

@@ -292,7 +292,7 @@ void print_positions() {
     SPX_print("\t--POSITIONS--\n");
 
     for (int tdx = 0; tdx < num_traders; tdx++) {
-        SPX_print("\t Trader %d: ", tdx);
+        SPX_print("\tTrader %d: ", tdx);
 
         for (int pidx = 0, count = num_products; pidx < num_products; ++pidx, --count) {
             printf("%s ", products[pidx]);
@@ -551,11 +551,11 @@ void signal_accepted(int trader_id, int order_id, char *order_type, int pidx, in
         if (j == trader_id) {
             char msg[FIFO_LIMIT];
             sprintf(msg, ACCEPTED, order_id);
-            write(exchange_fd[j], msg, strlen(msg) + 1);
+            write(exchange_fd[j], msg, strlen(msg));
         } else {
             char msg2[FIFO_LIMIT];
             sprintf(msg2, MARKET, order_type, products[pidx], qty, price);
-            write(exchange_fd[j], msg2, strlen(msg2) + 1);
+            write(exchange_fd[j], msg2, strlen(msg2));
         }
         // signal traders in both cases with their respective message
         kill(children[j], SIGUSR1);
@@ -840,6 +840,6 @@ char *read_from_trader(int trader_id) {
 }
 
 void write_to_trader(int trader_id, char *message) {
-    write(exchange_fd[trader_id], message, strlen(message) + 1);
+    write(exchange_fd[trader_id], message, strlen(message));
     kill(children[trader_id], SIGUSR1);
 }

@@ -53,7 +53,7 @@ void signal_handler(int sig, siginfo_t *sinfo, void *context) {
     if (sig == SIGCHLD) {
         sigchld++;  // increment to count traders disconnected
         child_idx = get_PID(sinfo->si_pid);
-        SPX_print(" Trader %d disconnected", child_idx);
+        SPX_print(" Trader %d disconnected\n", child_idx);
         write_to_trader(child_idx, "DISCONNECT");
         child_idx = -1;
     }
@@ -152,16 +152,19 @@ int main(int argc, char **argv) {
 
     // event loop
     while (sigchld < num_traders) {
-        if (!sigusr1)
+        if (!sigusr1) {
             pause();
-        else {
+        } else {
             // Parse in the order
             char *buf = read_from_trader(trader_idx);
             SPX_print(" [T%d] Parsing command: <%s>\n", trader_idx, buf);
 
             // Add the order to the orderbook, if invalid then break
-            if (!add_order(buf, trader_idx))
-                break;
+            if (!add_order(buf, trader_idx)) {
+                write_to_trader(trader_idx, "INVALID");
+                sigusr1 = 0;
+                continue;
+            }
 
             // Attempt to match positions
             match_positions();
@@ -380,7 +383,7 @@ void match_positions() {
                     matchbook[BID][i][VALUE] += -value;
                     matchbook[BID][i][QUANTITY] += buy_qty;
 
-                    matchbook[SID][i][VALUE] += value-fee;
+                    matchbook[SID][i][VALUE] += value - fee;
                     matchbook[SID][i][QUANTITY] += -sell_qty;
 
                     // remove the order from orderbook as it is fulfilled
@@ -411,7 +414,7 @@ void match_positions() {
                     matchbook[BID][i][VALUE] += -value;
                     matchbook[BID][i][QUANTITY] += sell_qty;
 
-                    matchbook[SID][i][VALUE] += value-fee;
+                    matchbook[SID][i][VALUE] += value - fee;
                     matchbook[SID][i][QUANTITY] += -sell_qty;
 
                     order *sell_head = sellbook[i];
@@ -435,7 +438,7 @@ void match_positions() {
                     matchbook[BID][i][VALUE] += -value;
                     matchbook[BID][i][QUANTITY] += buy_qty;
 
-                    matchbook[SID][i][VALUE] += value-fee;
+                    matchbook[SID][i][VALUE] += value - fee;
                     matchbook[SID][i][QUANTITY] += -buy_qty;
 
                     order *buy_head = buybook[i];
@@ -447,18 +450,18 @@ void match_positions() {
                 SPX_print(" Match: Order %d [T%d], New Order %d [T%d], value: $%d, fee: $%.0f.\n",
                           order_BID, BID, order_SID, SID, value, round(fee));
 
-                signal_fill(order_BID, order_SID, buyptr->quantity, sellptr->quantity, BID, SID);
 
                 if (buyptr) {
                     buy_qty = buyptr->quantity;
                     buy_price = buyptr->price;
-                }
+                } 
                 if (sellptr) {
                     sell_qty = sellptr->quantity;
                     sell_price = sellptr->price;
                 }
-
+                signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
                 trading_fees += round(fee);
+                
             } else {
                 break;
             }
@@ -474,7 +477,7 @@ int invalid_order(char *order_type, order *new_order, int pidx) {
         return 1;
     if (new_order->price >= 99999999 || new_order->quantity >= 99999999)
         return 1;
-    
+
     if (!new_order->price || !new_order->quantity || !order_type)
         return 1;
 
@@ -605,11 +608,11 @@ int add_order(char *order_line, int trader_id) {
     strcpy(copy, order_line);
     char *order_type = strtok(order_line, " ");
 
-    
     order *new_order = (order *)malloc(sizeof(order));
     new_order->order_id = atoi(strtok(NULL, " "));
 
-    if (new_order->order_id <= 0 || new_order->order_id >= 999999) {
+    if (new_order->order_id < 0 || new_order->order_id >= 999999) {
+        free(new_order);
         return 0;
     }
 
@@ -658,7 +661,6 @@ int add_order(char *order_line, int trader_id) {
 
     if (invalid_order(order_type, new_order, pidx)) {
         // write to trader that order is invalid
-        write_to_trader(trader_id, "INVALID");
         free(new_order);
         return 0;
     }

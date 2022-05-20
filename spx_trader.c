@@ -20,9 +20,9 @@ int do_order(char *order_line) {
     }
 
     char *order_type = strtok(NULL, " ");
-    if (strcmp(order_type, "BUY")==0) {
+    if (strcmp(order_type, "BUY") == 0) {
         flag = 1;
-    } else if (strcmp(order_type, "SELL")==0) {
+    } else if (strcmp(order_type, "SELL") == 0) {
         flag = 2;
     }
 
@@ -57,14 +57,14 @@ char *get_message1(char *input) {
     return input;
 }
 
-void sig_handler(int sig, siginfo_t *sinfo, void *context)  {
+void sig_handler(int sig, siginfo_t *sinfo, void *context) {
     if (sig == SIGUSR1) {
         if (strcmp(read_from_exchange(), "MARKET OPEN") == 0) {
-                        printf("coming here?\n");
+            printf("coming here?\n");
             market_open = 1;
             sigusr1 = 1;
         }
-                    printf("or here?\n");
+        printf("or here?\n");
         sigusr1 = 1;
     }
 }
@@ -85,10 +85,14 @@ int main(int argc, char **argv) {
     sprintf(exchange_fifo, FIFO_EXCHANGE, trader_id);
     sprintf(trader_fifo, FIFO_TRADER, trader_id);
 
+    printf("or here? 1 \n");
+    fflush(NULL);
     exchange_fd = open(exchange_fifo, O_RDONLY);
+    printf("or here? 2 \n");
+    fflush(NULL);
     trader_fd = open(trader_fifo, O_WRONLY);
-
-    printf("or here?\n");
+    printf("or here? 3 \n");
+    fflush(NULL);
 
     // register signal handler
     struct sigaction sa;
@@ -100,7 +104,6 @@ int main(int argc, char **argv) {
     while (market_open) {
         // event loop:
         if (!sigusr1) {
-
             pause();
         } else {
             char *buf = read_from_exchange();

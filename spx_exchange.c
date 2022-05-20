@@ -49,6 +49,7 @@ void signal_handler(int sig, siginfo_t *sinfo, void *context) {
     if (sig == SIGUSR1) {
         sigusr1 = 1;  // set flag to true
         trader_idx = get_PID(sinfo->si_pid);
+        usleep(1);
     }
     if (sig == SIGCHLD) {
         sigchld++;  // increment to count traders disconnected
@@ -741,14 +742,12 @@ int add_order(char *order_line, int trader_id) {
             sellptr = sellptr->next;
         }
     }
-    printf("%d\n", max_sid);
 
     if (max_bid > max_sid) {
         max_id = max_bid;
     } else {
         max_id = max_sid;
     }
-    printf("%d\n", max_sid);
     
 
     if ((max_id >= 0) && (new_order->order_id - max_id) != 1) {

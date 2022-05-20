@@ -12,7 +12,7 @@ volatile sig_atomic_t sigusr1;
 char *read_from_exchange();
 void send_to_exchange(char *msg);
 
-void do_order(char *order_line) {
+int do_order(char *order_line) {
     int flag = 0;
     char *mkt = strtok(order_line, " ");
     if (!strcmp(mkt, "MARKET") == 0) {
@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
     }
     unlink(exchange_fifo);
     unlink(trader_fifo);
-    kill(getppid, SIGCHLD);
+    kill(getppid(), SIGCHLD);
 }
 
 char *read_from_exchange() {

@@ -694,9 +694,9 @@ int add_order(char *order_line, int trader_id) {
     order *buyptr = buybook[pidx];
     order *sellptr = sellbook[pidx];
 
-    int max_id = 0;
-    int max_bid = 0;
-    int max_sid = 0;
+    int max_id = -1;
+    int max_bid = -1;
+    int max_sid = -1;
 
     if (!buyptr && !sellptr) {
         if (new_order->order_id != 0) {
@@ -741,14 +741,17 @@ int add_order(char *order_line, int trader_id) {
             sellptr = sellptr->next;
         }
     }
+    printf("%d\n", max_sid);
 
     if (max_bid > max_sid) {
         max_id = max_bid;
     } else {
         max_id = max_sid;
     }
+    printf("%d\n", max_sid);
+    
 
-    if (max_id && (new_order->order_id - max_id) != 1) {
+    if ((max_id >= 0) && (new_order->order_id - max_id) != 1) {
         free(new_order);
         return 0;
     }

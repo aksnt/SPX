@@ -56,6 +56,7 @@ void signal_handler(int sig, siginfo_t *sinfo, void *context) {
         SPX_print(" Trader %d disconnected\n", child_idx);
         write_to_trader(child_idx, "DISCONNECT");
         child_idx = -1;
+        usleep(1);
     }
 }
 
@@ -699,7 +700,6 @@ int add_order(char *order_line, int trader_id) {
 
     if (!buyptr && !sellptr) {
         if (new_order->order_id != 0) {
-            printf("here?\n");
             free(new_order);
             return 0;
         }

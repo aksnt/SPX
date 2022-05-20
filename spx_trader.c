@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
             char *buf = read_from_exchange();
             char buf3[FIFO_LIMIT];
             sprintf(buf3, ACCEPTED, order_id);
-            if (!do_order) {
+            if (!do_order(buf)) {
                 break;
             }
             sigusr1 = 0;

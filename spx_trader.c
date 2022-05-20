@@ -88,6 +88,8 @@ int main(int argc, char **argv) {
     exchange_fd = open(exchange_fifo, O_RDONLY);
     trader_fd = open(trader_fifo, O_WRONLY);
 
+    printf("or here?\n");
+
     // register signal handler
     struct sigaction sa;
     memset(&sa, 0, sizeof(struct sigaction));

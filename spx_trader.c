@@ -34,7 +34,6 @@ int *parse_message(char *order) {
     char *order_type = strtok(NULL, " ");
     char *product_type = strtok(NULL, " ");
     int qty = atoi(strtok(NULL, " "));
-    int price = atoi(strtok(NULL, " "));
 
     if (!strcmp(mkt, "MARKET") == 0) {
         return 0;
@@ -42,6 +41,11 @@ int *parse_message(char *order) {
     if (qty >= 1000) {
         return 0;
     }
+    
+    if (!product_type) {
+        return 0;
+    }
+
     if (strcmp(order_type, "BUY") == 0) {
         return 1;
     }

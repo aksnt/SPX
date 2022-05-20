@@ -648,7 +648,7 @@ int add_order(char *order_line, int trader_id) {
         char msg[FIFO_LIMIT];
         sprintf(msg, CANCELLED, new_order->order_id);
         write_to_trader(trader_id, msg);
-        return 2;
+        return 1;
     }
 
     free(copy);

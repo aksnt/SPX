@@ -56,7 +56,7 @@ char *get_message1(char *input) {
     return input;
 }
 
-void sig_handler(int sig) {
+void sig_handler(int sig, siginfo_t *sinfo, void *context)  {
     if (sig == SIGUSR1) {
         if (strcmp(read_from_exchange(), "MARKET OPEN") == 0) {
             market_open = 1;

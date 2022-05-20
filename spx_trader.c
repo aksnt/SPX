@@ -12,13 +12,28 @@ volatile sig_atomic_t sigusr1;
 char *read_from_exchange();
 void send_to_exchange(char *msg);
 
-void do_order(char *order_line, int flag) {
+void do_order(char *order_line) {
+    int flag = 0;
     char *mkt = strtok(order_line, " ");
+    if (!strcmp(mkt, "MARKET") == 0) {
+        return 0;
+    }
+
     char *order_type = strtok(NULL, " ");
+    if (strcmp(order_type, "BUY")==0) {
+        flag = 1;
+    } else if (strcmp(order_type, "SELL")==0) {
+        flag = 2;
+    }
+
     char *product_type = strtok(NULL, " ");
     int qty = atoi(strtok(NULL, " "));
-    int price = atoi(strtok(NULL, " "));
 
+    if (qty >= 1000) {
+        return 0;
+    }
+
+    int price = atoi(strtok(NULL, " "));
     char auto_order[FIFO_LIMIT];
 
     if (flag == 1)
@@ -27,31 +42,6 @@ void do_order(char *order_line, int flag) {
         sprintf(auto_order, SELL, order_id++, product_type, qty, price);
 
     send_to_exchange(auto_order);
-}
-
-int *parse_message(char *order) {
-    char *mkt = strtok(order, " ");
-    char *order_type = strtok(NULL, " ");
-    char *product_type = strtok(NULL, " ");
-    int qty = atoi(strtok(NULL, " "));
-
-    if (!strcmp(mkt, "MARKET") == 0) {
-        return 0;
-    }
-    if (qty >= 1000) {
-        return 0;
-    }
-    
-    if (!product_type) {
-        return 0;
-    }
-
-    if (strcmp(order_type, "BUY") == 0) {
-        return 1;
-    }
-    if (strcmp(order_type, "SELL") == 0) {
-        return 2;
-    }
 }
 
 char *get_message1(char *input) {
@@ -109,19 +99,12 @@ int main(int argc, char **argv) {
             pause();
         } else {
             char *buf = read_from_exchange();
-            char buf2[FIFO_LIMIT];
-            strcpy(buf2, buf);
-            int res = parse_message(buf);
-            if (!res) {
-                break;
-            }
             char buf3[FIFO_LIMIT];
             sprintf(buf3, ACCEPTED, order_id);
-            if (res == 1) {
-                do_order(buf2, 1);
-            } else {
-                do_order(buf2, 2);
+            if (!do_order) {
+                break;
             }
+            sigusr1 = 0;
         }
     }
     unlink(exchange_fifo);

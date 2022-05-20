@@ -63,7 +63,6 @@ void sig_handler(int sig, siginfo_t *sinfo, void *context)  {
             market_open = 1;
             sigusr1 = 1;
         }
-
         sigusr1 = 1;
     }
 }
@@ -97,6 +96,7 @@ int main(int argc, char **argv) {
     while (market_open) {
         // event loop:
         if (!sigusr1) {
+            printf("coming here?\n");
             pause();
         } else {
             char *buf = read_from_exchange();
@@ -106,6 +106,7 @@ int main(int argc, char **argv) {
                 break;
             }
             sigusr1 = 0;
+            printf("or here?\n");
         }
     }
     unlink(exchange_fifo);

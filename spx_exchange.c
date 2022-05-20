@@ -617,7 +617,6 @@ int add_order(char *order_line, int trader_id) {
     strcpy(copy, order_line);
     char *order_type = strtok(order_line, " ");
 
-
     order *new_order = (order *)malloc(sizeof(order));
     new_order->order_id = atoi(strtok(NULL, " "));
 
@@ -696,13 +695,15 @@ int add_order(char *order_line, int trader_id) {
 
     if (buyptr && sellptr) {
         while (buyptr) {
-            if (buyptr->order_id > max_bid) {
+            if ((buyptr->order_id > max_bid) &&
+                (new_order->trader_id == buyptr->trader_id)) {
                 max_bid = buyptr->order_id;
             }
             buyptr = buyptr->next;
         }
         while (sellptr) {
-            if (sellptr->order_id > max_sid) {
+            if ((sellptr->order_id > max_sid) &&
+                (new_order->trader_id == sellptr->trader_id)) {
                 max_sid = sellptr->order_id;
             }
             sellptr = sellptr->next;
@@ -711,7 +712,8 @@ int add_order(char *order_line, int trader_id) {
 
     if (buyptr && !sellptr) {
         while (buyptr) {
-            if (buyptr->order_id > max_bid) {
+            if ((buyptr->order_id > max_bid) &&
+                (new_order->trader_id == buyptr->trader_id)) {
                 max_bid = buyptr->order_id;
             }
             buyptr = buyptr->next;
@@ -720,7 +722,8 @@ int add_order(char *order_line, int trader_id) {
 
     if (!buyptr && sellptr) {
         while (sellptr) {
-            if (sellptr->order_id > max_sid) {
+            if ((sellptr->order_id > max_sid) &&
+                (new_order->trader_id == sellptr->trader_id)) {
                 max_sid = sellptr->order_id;
             }
             sellptr = sellptr->next;

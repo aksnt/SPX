@@ -665,6 +665,10 @@ int add_order(char *order_line, int trader_id) {
 
     new_order->quantity = atoi(strtok(NULL, " "));
     new_order->price = atoi(strtok(NULL, " "));
+    if (new_order->quantity <= 0 || new_order->price <= 0) {
+        free(new_order);
+        return 0;
+    }
     new_order->trader_id = trader_id;
     new_order->flag = 0;
 
@@ -727,6 +731,13 @@ int add_order(char *order_line, int trader_id) {
                 max_sid = sellptr->order_id;
             }
             sellptr = sellptr->next;
+        }
+    }
+
+    if (!buyptr && !sellptr) {
+        if (new_order->order_id != 0) {
+            free(new_order);
+            return 0;
         }
     }
 

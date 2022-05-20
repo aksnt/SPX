@@ -356,6 +356,8 @@ void match_positions() {
         int sell_price = (sellbook[i])->price;  // head of sellbook for a product
         int buy_qty = (buybook[i])->quantity;
         int sell_qty = (sellbook[i])->quantity;
+        int sold = 0;
+        int bought = 0;
 
         int BID = 0;
         int order_BID = 0;
@@ -378,12 +380,15 @@ void match_positions() {
                     BID = buyptr->trader_id;
                     SID = sellptr->trader_id;
 
+                    bought = buy_qty;
+                    sold = sell_qty;
+
                     // store order in matched orders for buyer and seller
 
                     matchbook[BID][i][VALUE] += -value;
                     matchbook[BID][i][QUANTITY] += buy_qty;
 
-                    matchbook[SID][i][VALUE] += value - fee;
+                    matchbook[SID][i][VALUE] += (value - round(fee));
                     matchbook[SID][i][QUANTITY] += -sell_qty;
 
                     // remove the order from orderbook as it is fulfilled
@@ -399,6 +404,8 @@ void match_positions() {
                 }
                 if (buy_qty > sell_qty) {
                     // delete the sell order and modify buy order
+                    bought = (sellbook[i])->quantity;
+                    sold = (sellbook[i])->quantity;
                     (buybook[i])->quantity =
                         (buybook[i])->quantity - (sellbook[i])->quantity;
 
@@ -414,7 +421,7 @@ void match_positions() {
                     matchbook[BID][i][VALUE] += -value;
                     matchbook[BID][i][QUANTITY] += sell_qty;
 
-                    matchbook[SID][i][VALUE] += value - fee;
+                    matchbook[SID][i][VALUE] += (value - round(fee));
                     matchbook[SID][i][QUANTITY] += -sell_qty;
 
                     order *sell_head = sellbook[i];
@@ -424,6 +431,8 @@ void match_positions() {
                 }
                 if (buy_qty < sell_qty) {
                     // delete the buy order and modify sell order
+                    bought = (buybook[i])->quantity;
+                    sold = (buybook[i])->quantity;
                     (sellbook[i])->quantity =
                         (sellbook[i])->quantity - (buybook[i])->quantity;
 
@@ -438,7 +447,7 @@ void match_positions() {
                     matchbook[BID][i][VALUE] += -value;
                     matchbook[BID][i][QUANTITY] += buy_qty;
 
-                    matchbook[SID][i][VALUE] += value - fee;
+                    matchbook[SID][i][VALUE] += (value - round(fee));
                     matchbook[SID][i][QUANTITY] += -buy_qty;
 
                     order *buy_head = buybook[i];
@@ -450,7 +459,7 @@ void match_positions() {
                 SPX_print(" Match: Order %d [T%d], New Order %d [T%d], value: $%.0f, fee: $%.0f.\n",
                           order_BID, BID, order_SID, SID, value, round(fee));
 
-                signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
+                signal_fill(order_BID, order_SID, bought, sold, BID, SID);
 
                 if (buyptr) {
                     buy_qty = buyptr->quantity;
@@ -677,59 +686,55 @@ int add_order(char *order_line, int trader_id) {
                         order_type, pidx, new_order->quantity, new_order->price);
     }
 
-
     order *buyptr = buybook[pidx];
     order *sellptr = sellbook[pidx];
 
-    int max_buy_id = 0;
-    int max_sell_id = 0;
+    int max_id = 0;
+    int max_bid = 0;
+    int max_sid = 0;
 
-    if (do_buy && !buyptr && new_order->order_id != 0) {
-        free(new_order);
-        return 0;
+    if (buyptr && sellptr) {
+        while (buyptr) {
+            if (buyptr->order_id > max_bid) {
+                max_bid = buyptr->order_id;
+            }
+            buyptr = buyptr->next;
+        }
+        while (sellptr) {
+            if (sellptr->order_id > max_sid) {
+                max_sid = sellptr->order_id;
+            }
+            sellptr = sellptr->next;
+        }
     }
 
-    if (do_sell && !sellptr && new_order->order_id != 0) {
-        free(new_order);
-        return 0;
-    }
-
-    if (do_buy && buyptr) {
-        max_buy_id = buyptr->order_id;
-        while (buyptr->next) {
-            if (buyptr->next->order_id > max_buy_id) {
-                max_buy_id = buyptr->next->order_id;
+    if (buyptr && !sellptr) {
+        while (buyptr) {
+            if (buyptr->order_id > max_bid) {
+                max_bid = buyptr->order_id;
             }
             buyptr = buyptr->next;
         }
     }
 
-    if (!amended && do_sell && sellptr) {
-        max_sell_id = sellptr->order_id;
-        while (sellptr->next) {
-            if (sellptr->next->order_id > max_sell_id) {
-                max_sell_id = sellptr->next->order_id;
+    if (!buyptr && sellptr) {
+        while (sellptr) {
+            if (sellptr->order_id > max_sid) {
+                max_sid = sellptr->order_id;
             }
             sellptr = sellptr->next;
         }
     }
 
-    if (!amended && do_buy && buyptr) {
-        if ((new_order->order_id - max_buy_id) != 1) {
-            free(new_order);
-            return 0;
-        }
+    if (max_bid > max_sid) {
+        max_id = max_bid;
+    } else {
+        max_id = max_sid;
     }
 
-    if (!amended && do_sell && sellptr) {
-        while (sellptr->next) {
-            sellptr = sellptr->next;
-        }
-
-        if ((new_order->order_id - max_sell_id) != 1) {
-            free(new_order);
-            return 0;
-        }
+    if (max_id && (new_order->order_id - max_id) != 1) {
+        free(new_order);
+        return 0;
     }
 
     // Insert in order of price -> according to buy or sell

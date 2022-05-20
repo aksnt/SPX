@@ -37,6 +37,14 @@ int *trader_fd;
 
 pid_t *children;
 
+int get_PID(pid_t pid) {
+    for (int i = 0; i < num_traders; i++) {
+        if (pid == children[i])
+            return i;
+    }
+    return 0;
+}
+
 void signal_handler(int sig, siginfo_t *sinfo, void *context) {
     if (sig == SIGUSR1) {
         sigusr1 = 1;  // set flag to true
@@ -108,7 +116,7 @@ int main(int argc, char **argv) {
             printf("ERROR: Failed to create FIFO /tmp/spx_trader_%d", i);
         }
         SPX_print(" Created FIFO %s\n", trader_fifo[i]);
-
+        usleep(1);
         SPX_print(" Starting trader %d (%s)\n", i, argv[2 + i]);
 
         // Start each trader as a child process
@@ -215,6 +223,7 @@ int main(int argc, char **argv) {
     free(trader_fd);
     free(exchange_fifo);
     free(trader_fifo);
+    usleep(1);
     free(children);
 
     return 0;
@@ -409,8 +418,10 @@ void match_positions() {
                     matchbook[SID][i][VALUE] += value;
                     matchbook[SID][i][QUANTITY] += -sell_qty;
 
-                    remove_sellbook(i);
-                    sellptr = NULL;
+                    order *sell_head = sellbook[i];
+                    sellbook[i] = (sellbook[i])->next;
+                    free(sell_head);
+                    sellptr = sellbook[i];
                 }
                 if (buy_qty < sell_qty) {
                     // delete the buy order and modify sell order
@@ -431,18 +442,30 @@ void match_positions() {
                     matchbook[SID][i][VALUE] += value;
                     matchbook[SID][i][QUANTITY] += -buy_qty;
 
-                    remove_buybook(i);
-                    buyptr = NULL;
+                    order *buy_head = buybook[i];
+                    buybook[i] = (buybook[i])->next;
+                    free(buy_head);  // free memory allocated
+                    buyptr = buybook[i];
                 }
 
-                SPX_print(" Match: Order %d [T%d], New order: %d [T%d] value: $%d, fee: $%.0f.\n",
+                SPX_print(" Match: Order %d [T%d], New Order %d [T%d], value: $%d, fee: $%.0f.\n",
                           order_BID, BID, order_SID, SID, value, round(fee));
+
+                signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
+
+                if (buyptr) {
+                    buy_qty = buyptr->quantity;
+                    buy_price = buyptr->price;
+                }
+                if (sellptr) {
+                    sell_qty = sellptr->quantity;
+                    sell_price = sellptr->price;
+                }
 
                 trading_fees += round(fee);
             } else {
                 break;
             }
-            signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
         }
     }
 }
@@ -644,12 +667,12 @@ int add_order(char *order_line, int trader_id) {
     // Insert in order of price -> according to buy or sell
     if (do_buy) {
         // Insert into buy book from highest to lowest
-        if (!buybook[pidx] || (buybook[pidx])->price <= new_order->price) {
+        if (!buybook[pidx] || (buybook[pidx])->price < new_order->price) {
             new_order->next = buybook[pidx];
             buybook[pidx] = new_order;
         } else {
             order *cursor = buybook[pidx];
-            while (cursor->next && (cursor->next->price > new_order->price)) {
+            while (cursor->next && (cursor->next->price >= new_order->price)) {
                 cursor = cursor->next;
             }
             new_order->next = cursor->next;
@@ -658,13 +681,13 @@ int add_order(char *order_line, int trader_id) {
 
     } else if (do_sell) {
         // Insert into sell book from lowest to highest order
-        if (!sellbook[pidx] || (sellbook[pidx])->price >= new_order->price) {
+        if (!sellbook[pidx] || (sellbook[pidx])->price > new_order->price) {
             new_order->next = sellbook[pidx];
             sellbook[pidx] = new_order;
 
         } else {
             order *cursor = sellbook[pidx];
-            while (cursor->next && cursor->next->price < new_order->price) {
+            while (cursor->next && cursor->next->price <= new_order->price) {
                 cursor = cursor->next;
             }
             new_order->next = cursor->next;
@@ -847,14 +870,6 @@ void print_orderbook() {
             }
         }
     }
-}
-
-int get_PID(pid_t pid) {
-    for (int i = 0; i < num_traders; i++) {
-        if (pid == children[i])
-            return i;
-    }
-    return 0;
 }
 
 char *read_from_trader(int trader_id) {

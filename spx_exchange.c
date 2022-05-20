@@ -677,23 +677,24 @@ int add_order(char *order_line, int trader_id) {
                         order_type, pidx, new_order->quantity, new_order->price);
     }
 
+
     order *buyptr = buybook[pidx];
     order *sellptr = sellbook[pidx];
 
     int max_buy_id = 0;
     int max_sell_id = 0;
 
-    if (!buyptr && new_order->order_id != 0) {
+    if (do_buy && !buyptr && new_order->order_id != 0) {
         free(new_order);
         return 0;
     }
 
-    if (!sellptr && new_order->order_id != 0) {
+    if (do_sell && !sellptr && new_order->order_id != 0) {
         free(new_order);
         return 0;
     }
 
-    if (!amended && do_buy && buyptr) {
+    if (do_buy && buyptr) {
         max_buy_id = buyptr->order_id;
         while (buyptr->next) {
             if (buyptr->next->order_id > max_buy_id) {
@@ -714,9 +715,6 @@ int add_order(char *order_line, int trader_id) {
     }
 
     if (!amended && do_buy && buyptr) {
-        while (buyptr->next)
-            buyptr = buyptr->next;
-
         if ((new_order->order_id - max_buy_id) != 1) {
             free(new_order);
             return 0;
@@ -725,12 +723,10 @@ int add_order(char *order_line, int trader_id) {
 
     if (!amended && do_sell && sellptr) {
         while (sellptr->next) {
-            printf("I should not here\n\n");
             sellptr = sellptr->next;
         }
 
         if ((new_order->order_id - max_sell_id) != 1) {
-            printf("I should come here\n\n");
             free(new_order);
             return 0;
         }

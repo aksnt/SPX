@@ -451,11 +451,11 @@ void match_positions() {
                           order_BID, BID, order_SID, SID, value, round(fee));
 
                 signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
-                
+
                 if (buyptr) {
                     buy_qty = buyptr->quantity;
                     buy_price = buyptr->price;
-                } 
+                }
                 if (sellptr) {
                     sell_qty = sellptr->quantity;
                     sell_price = sellptr->price;
@@ -675,6 +675,65 @@ int add_order(char *order_line, int trader_id) {
         // send accepeted to trader and market <order details> to others
         signal_accepted(trader_id, new_order->order_id,
                         order_type, pidx, new_order->quantity, new_order->price);
+    }
+
+    order *buyptr = buybook[pidx];
+    order *sellptr = sellbook[pidx];
+
+    int max_buy_id = 0;
+    int max_sell_id = 0;
+
+    if (!buyptr && new_order->order_id != 0) {
+        free(new_order);
+        return 0;
+    }
+
+    if (!sellptr && new_order->order_id != 0) {
+        free(new_order);
+        return 0;
+    }
+
+    if (!amended && do_buy && buyptr) {
+        max_buy_id = buyptr->order_id;
+        while (buyptr->next) {
+            if (buyptr->next->order_id > max_buy_id) {
+                max_buy_id = buyptr->next->order_id;
+            }
+            buyptr = buyptr->next;
+        }
+    }
+
+    if (!amended && do_sell && sellptr) {
+        max_sell_id = sellptr->order_id;
+        while (sellptr->next) {
+            if (sellptr->next->order_id > max_sell_id) {
+                max_sell_id = sellptr->next->order_id;
+            }
+            sellptr = sellptr->next;
+        }
+    }
+
+    if (!amended && do_buy && buyptr) {
+        while (buyptr->next)
+            buyptr = buyptr->next;
+
+        if ((new_order->order_id - max_buy_id) != 1) {
+            free(new_order);
+            return 0;
+        }
+    }
+
+    if (!amended && do_sell && sellptr) {
+        while (sellptr->next) {
+            printf("I should not here\n\n");
+            sellptr = sellptr->next;
+        }
+
+        if ((new_order->order_id - max_sell_id) != 1) {
+            printf("I should come here\n\n");
+            free(new_order);
+            return 0;
+        }
     }
 
     // Insert in order of price -> according to buy or sell

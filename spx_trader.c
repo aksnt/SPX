@@ -14,19 +14,16 @@ void send_to_exchange(char *msg);
 
 void do_order(char *order_line, int flag) {
     char *mkt = strtok(order_line, " ");
-    char* order_type = strtok(NULL, " ");
-    char* product_type = strtok(NULL, " ");
-    int qty = strtok(NULL, " ");
-    if (qty >= 1000) {
-        return 0;
-    }
-    int price = strtok(NULL, " ");
+    char *order_type = strtok(NULL, " ");
+    char *product_type = strtok(NULL, " ");
+    int qty = atoi(strtok(NULL, " "));
+    int price = atoi(strtok(NULL, " "));
 
     char auto_order[FIFO_LIMIT];
 
-    if (flag == 1) 
+    if (flag == 1)
         sprintf(auto_order, BUY, order_id++, product_type, qty, price);
-    else 
+    else
         sprintf(auto_order, SELL, order_id++, product_type, qty, price);
 
     send_to_exchange(auto_order);
@@ -34,10 +31,17 @@ void do_order(char *order_line, int flag) {
 
 int *parse_message(char *order) {
     char *mkt = strtok(order, " ");
+    char *order_type = strtok(NULL, " ");
+    char *product_type = strtok(NULL, " ");
+    int qty = atoi(strtok(NULL, " "));
+    int price = atoi(strtok(NULL, " "));
+
     if (!strcmp(mkt, "MARKET") == 0) {
         return 0;
     }
-    char *order_type = strtok(NULL, " ");
+    if (qty >= 1000) {
+        return 0;
+    }
     if (strcmp(order_type, "BUY") == 0) {
         return 1;
     }
@@ -104,6 +108,9 @@ int main(int argc, char **argv) {
             char buf2[FIFO_LIMIT];
             strcpy(buf2, buf);
             int res = parse_message(buf);
+            if (!res) {
+                break;
+            }
             char buf3[FIFO_LIMIT];
             sprintf(buf3, ACCEPTED, order_id);
             if (res == 1) {
@@ -113,6 +120,9 @@ int main(int argc, char **argv) {
             }
         }
     }
+    unlink(exchange_fifo);
+    unlink(trader_fifo);
+    kill(getppid, SIGCHLD);
 }
 
 char *read_from_exchange() {

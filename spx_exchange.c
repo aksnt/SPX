@@ -617,6 +617,7 @@ int add_order(char *order_line, int trader_id) {
     strcpy(copy, order_line);
     char *order_type = strtok(order_line, " ");
 
+
     order *new_order = (order *)malloc(sizeof(order));
     new_order->order_id = atoi(strtok(NULL, " "));
 

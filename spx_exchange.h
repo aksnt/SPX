@@ -4,7 +4,6 @@
 #include "spx_common.h"
 
 #define LOG_PREFIX "[SPX]"
-#define VALID_ORDER_SIZE 5
 
 typedef struct order order;
 

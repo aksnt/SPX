@@ -42,6 +42,7 @@ int do_order(char *order_line) {
         sprintf(auto_order, SELL, order_id++, product_type, qty, price);
 
     send_to_exchange(auto_order);
+    return 1;
 }
 
 char *get_message1(char *input) {

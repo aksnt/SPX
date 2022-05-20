@@ -363,7 +363,7 @@ void match_positions() {
         int order_SID = 0;
         // While both books have orders, we attempt to match
         while (buyptr && sellptr) {
-            int value = 0;
+            double value = 0;
             double fee = 0;
 
             if (buy_price >= sell_price) {
@@ -447,10 +447,11 @@ void match_positions() {
                     buyptr = buybook[i];
                 }
 
-                SPX_print(" Match: Order %d [T%d], New Order %d [T%d], value: $%d, fee: $%.0f.\n",
+                SPX_print(" Match: Order %d [T%d], New Order %d [T%d], value: $%.0f, fee: $%.0f.\n",
                           order_BID, BID, order_SID, SID, value, round(fee));
 
-
+                signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
+                
                 if (buyptr) {
                     buy_qty = buyptr->quantity;
                     buy_price = buyptr->price;
@@ -459,9 +460,8 @@ void match_positions() {
                     sell_qty = sellptr->quantity;
                     sell_price = sellptr->price;
                 }
-                signal_fill(order_BID, order_SID, buy_qty, sell_qty, BID, SID);
                 trading_fees += round(fee);
-                
+
             } else {
                 break;
             }

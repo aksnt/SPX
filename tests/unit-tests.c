@@ -13,17 +13,24 @@
 // #include "../spx_exchange.c"    
 #include "../spx_trader.h"
 
-int main(void) {
-    const struct CMUnitTest tests [] = {
-        cmocka_unit_test(test_get_PID)
-    };
-    return cmocka_run_group_tests(tests, NULL, NULL);
-}
-
-
-
 static void test_get_PID(void **state) {
     int PID = 1;
     int result = get_PID(PID);
     assert_int_equal(result, 0);
 }
+
+static void test_get_PID_neg(void **state) {
+    int PID = -1;
+    int result = get_PID(PID);
+    assert_int_equal(result, 0);
+}
+
+int main(void) {
+    const struct CMUnitTest tests [] = {
+        cmocka_unit_test(test_get_PID),
+        cmocka_unit_test_neg(test_get_PID)
+    };
+    return cmocka_run_group_tests(tests, NULL, NULL);
+}
+
+

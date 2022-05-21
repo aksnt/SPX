@@ -26,10 +26,10 @@ order **sellbook = NULL;  // sell orderbook
 int ***matchbook;         // stores matched orders for each trader
 
 // Global signal variables
-volatile sig_atomic_t sigusr1;         // flag variable for logic
-volatile sig_atomic_t sigchld;         // counts children
-volatile sig_atomic_t trader_idx;      // stores trader index given by sending process
-volatile sig_atomic_t child_idx = -1;  // stores trader id of child that sent SIGCHLD
+volatile sig_atomic_t sigusr1;       // flag variable for logic
+volatile sig_atomic_t sigchld;       // counts children
+volatile sig_atomic_t trader_idx;    // stores trader index given by sending process
+static sig_atomic_t child_idx = -1;  // stores trader id of child that sent SIGCHLD
 
 char received_msg[FIFO_LIMIT];
 int *exchange_fd;
@@ -50,14 +50,17 @@ void signal_handler(int sig, siginfo_t *sinfo, void *context) {
         sigusr1 = 1;  // set flag to true
         trader_idx = get_PID(sinfo->si_pid);
         usleep(1);
+        return;
     }
     if (sig == SIGCHLD) {
         sigchld++;  // increment to count traders disconnected
         child_idx = get_PID(sinfo->si_pid);
         SPX_print(" Trader %d disconnected\n", child_idx);
+        fflush(stdout);
         write_to_trader(child_idx, "DISCONNECT");
         child_idx = -1;
         usleep(1);
+        return;
     }
 }
 
@@ -96,7 +99,7 @@ int main(int argc, char **argv) {
     struct sigaction sa;
     memset(&sa, 0, sizeof(struct sigaction));
     sa.sa_sigaction = &signal_handler;
-    sa.sa_flags = SA_SIGINFO;
+    sa.sa_flags = SA_RESTART | SA_SIGINFO;
 
     sigaction(SIGUSR1, &sa, NULL);  // handle SIGUSR1
     sigaction(SIGCHLD, &sa, NULL);  // handle SIGCHLD
@@ -162,7 +165,8 @@ int main(int argc, char **argv) {
             SPX_print(" [T%d] Parsing command: <%s>\n", trader_idx, buf);
 
             // Add the order to the orderbook, if invalid then break
-            if (!add_order(buf, trader_idx)) {
+            int res = add_order(buf, trader_idx);
+            if (!res) {
                 write_to_trader(trader_idx, "INVALID");
                 sigusr1 = 0;
                 continue;
@@ -255,26 +259,6 @@ char *get_message_e(char *input) {
     return input;
 }
 
-int num_words(char *line) {
-    int len_line = strlen(line);
-    int num_orders = 0;
-
-    char is_last_char_space = 1;
-
-    // for each word
-    for (int line_i = 0; line_i < len_line - 1; line_i++) {
-        if (line[line_i] == ';')
-            is_last_char_space = 1;
-        else {
-            if (is_last_char_space)
-                num_orders++;
-
-            is_last_char_space = 0;
-        }
-    }
-    return num_orders;
-}
-
 int read_products(char *path, int *num_products, char ***products) {
     FILE *file;
 
@@ -318,18 +302,6 @@ void print_positions() {
                 printf("\n");
         }
     }
-}
-
-void remove_buybook(int pidx) {
-    order *head = buybook[pidx];
-    buybook[pidx] = (buybook[pidx])->next;
-    free(head);  // free memory allocated
-}
-
-void remove_sellbook(int pidx) {
-    order *head = sellbook[pidx];
-    sellbook[pidx] = (sellbook[pidx])->next;
-    free(head);  // free memory allocated
 }
 
 void signal_fill(int order_BID, int order_SID, int buy_qty, int sell_qty, int BID, int SID) {
@@ -411,7 +383,7 @@ void match_positions() {
                     (buybook[i])->quantity =
                         (buybook[i])->quantity - (sellbook[i])->quantity;
 
-                    value = buyptr->price * (sellbook[i])->quantity;
+                    value = sellptr->price * (sellbook[i])->quantity;
                     fee = value * FEE_PERCENTAGE;
 
                     order_BID = buyptr->order_id;
@@ -526,12 +498,13 @@ int get_pidx(char *product) {
 
 int find_and_remove(char *order_line, int trader_id, int returns[]) {
     char *order_type = strtok(order_line, " ");
-    if (strcmp(order_type, "AMEND") != 0) {
-        exit(1);
-    }
-
-    int OID = atoi(strtok(NULL, " "));
+    int OID = 0;
     int TID = trader_id;
+    if (strcmp(order_type, "AMEND") == 0) {
+        OID = atoi(strtok(NULL, " "));
+    } else if (strcmp(order_type, "CANCEL") == 0) {
+        OID = atoi(strtok(NULL, " "));
+    }
 
     // search both books for a match
     for (int i = 0; i < num_products; i++) {
@@ -648,7 +621,7 @@ int add_order(char *order_line, int trader_id) {
         char msg[FIFO_LIMIT];
         sprintf(msg, CANCELLED, new_order->order_id);
         write_to_trader(trader_id, msg);
-        return 1;
+        return 2;
     }
 
     free(copy);
@@ -656,6 +629,10 @@ int add_order(char *order_line, int trader_id) {
     int pidx = 0;
     if (!amended) {
         char *product_type = strtok(NULL, " ");
+        if (!product_type) {
+            free(new_order);
+            return 0;
+        }
         pidx = get_pidx(product_type);
         if (pidx != -1)
             new_order->product_idx = pidx;
@@ -748,7 +725,6 @@ int add_order(char *order_line, int trader_id) {
     } else {
         max_id = max_sid;
     }
-    
 
     if ((max_id >= 0) && (new_order->order_id - max_id) != 1) {
         free(new_order);

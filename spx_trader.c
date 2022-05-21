@@ -59,7 +59,7 @@ char *get_message1(char *input) {
 
 void sig_handler(int sig, siginfo_t *sinfo, void *context) {
     if (sig == SIGUSR1) {
-        char* buf = read_from_exchange();
+        char *buf = read_from_exchange();
         if (strcmp(buf, "MARKET OPEN") == 0) {
             market_open = 1;
             sigusr1 = 1;
@@ -95,15 +95,15 @@ int main(int argc, char **argv) {
 
     // wait for exchange update (MARKET message)
     // event loop:
-    while (market_open) {
-        if (!sigusr1) {
-            pause();
-        } else {
+    while (1) {
+        if (market_open) {
             char *buf = read_from_exchange();
             if (!do_order(buf)) {
                 continue;
             }
             sigusr1 = 0;
+        } else {
+            pause();
         }
     }
     unlink(exchange_fifo);

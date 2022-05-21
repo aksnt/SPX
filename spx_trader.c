@@ -79,18 +79,17 @@ int main(int argc, char **argv) {
     }
 
     // connect to named pipes
-    trader_id = atoi(argv[1]);
-    sprintf(exchange_fifo, FIFO_EXCHANGE, trader_id);
-    sprintf(trader_fifo, FIFO_TRADER, trader_id);
+    // trader_id = atoi(argv[1]);
+    // sprintf(exchange_fifo, FIFO_EXCHANGE, trader_id);
+    // sprintf(trader_fifo, FIFO_TRADER, trader_id);
 
-    printf("or here? 1 \n");
     fflush(NULL);
     exchange_fd = open(exchange_fifo, O_RDONLY);
-    printf("or here? 2 \n");
     fflush(NULL);
     trader_fd = open(trader_fifo, O_WRONLY);
-    printf("or here? 3 \n");
     fflush(NULL);
+
+    printf("here?\n");
 
     // register signal handler
     struct sigaction sa;

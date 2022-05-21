@@ -94,16 +94,14 @@ int main(int argc, char **argv) {
     sa.sa_flags = SA_SIGINFO;
 
     // wait for exchange update (MARKET message)
-    while (1) {
-        // event loop:
+    // event loop:
+    while (market_open) {
         if (!sigusr1) {
             pause();
         } else {
             char *buf = read_from_exchange();
-            char buf3[FIFO_LIMIT];
-            sprintf(buf3, ACCEPTED, order_id);
             if (!do_order(buf)) {
-                break;
+                continue;
             }
             sigusr1 = 0;
         }

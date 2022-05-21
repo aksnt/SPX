@@ -60,11 +60,9 @@ char *get_message1(char *input) {
 void sig_handler(int sig, siginfo_t *sinfo, void *context) {
     if (sig == SIGUSR1) {
         if (strcmp(read_from_exchange(), "MARKET OPEN") == 0) {
-            printf("coming here?\n");
             market_open = 1;
             sigusr1 = 1;
         }
-        printf("or here?\n");
         sigusr1 = 1;
     }
 }
@@ -101,7 +99,7 @@ int main(int argc, char **argv) {
     sa.sa_flags = SA_SIGINFO;
 
     // wait for exchange update (MARKET message)
-    while (market_open) {
+    while (1) {
         // event loop:
         if (!sigusr1) {
             pause();

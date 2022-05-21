@@ -6,7 +6,6 @@
 #define LOG_PREFIX "[SPX]"
 
 typedef struct order order;
-
 struct order {
     int order_id; 
     int product_idx; //stores which product is being ordered
@@ -18,6 +17,14 @@ struct order {
     order* next;
 };
 
+/**
+ * @brief Checks whether an order is invalid based on the full order and struct representation
+ * 
+ * @param order_type 
+ * @param new_order 
+ * @param pidx 
+ * @return 1 if invalid, 0 otherwise
+ */
 int invalid_order(char *order_type, order *new_order, int pidx);
 
 #endif

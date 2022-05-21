@@ -5,14 +5,7 @@
  */
 
 #include "spx_exchange.h"
-
 #include "spx_common.h"
-
-int SPX_print(const char *restrict format, ...);
-char *get_message(char *input);
-int number_orders(char *line);
-char *read_from_trader(int trader_id);
-void write_to_trader(int trader_id, char *message);
 
 // Utility variables storing total products, traders and all products
 int num_products;
@@ -36,14 +29,6 @@ int *exchange_fd;
 int *trader_fd;
 
 pid_t *children;
-
-int get_PID(pid_t pid) {
-    for (int i = 0; i < num_traders; i++) {
-        if (pid == children[i])
-            return i;
-    }
-    return 0;
-}
 
 void signal_handler(int sig, siginfo_t *sinfo, void *context) {
     if (sig == SIGUSR1) {
@@ -383,7 +368,7 @@ void match_positions() {
                     (buybook[i])->quantity =
                         (buybook[i])->quantity - (sellbook[i])->quantity;
 
-                    value = sellptr->price * (sellbook[i])->quantity;
+                    value = buyptr->price * (sellbook[i])->quantity;
                     fee = value * FEE_PERCENTAGE;
 
                     order_BID = buyptr->order_id;
@@ -947,4 +932,12 @@ char *read_from_trader(int trader_id) {
 void write_to_trader(int trader_id, char *message) {
     write(exchange_fd[trader_id], message, strlen(message));
     kill(children[trader_id], SIGUSR1);
+}
+
+int get_PID(pid_t pid) {
+    for (int i = 0; i < num_traders; i++) {
+        if (pid == children[i])
+            return i;
+    }
+    return 0;
 }

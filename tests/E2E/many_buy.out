@@ -1,0 +1,84 @@
+[SPX] Starting
+[SPX] Trading 2 products: GPU Router
+[SPX] Created FIFO /tmp/spx_exchange_0
+[SPX] Created FIFO /tmp/spx_trader_0
+[SPX] Starting trader 0 (./trader_a)
+[SPX] Connected to /tmp/spx_exchange_0
+[SPX] Connected to /tmp/spx_trader_0
+[SPX] [T0] Parsing command: <BUY 0 GPU 30 501>
+[SPX]   --ORDERBOOK--
+[SPX]   Product: GPU; Buy levels: 1; Sell levels: 0
+[SPX]           BUY 30 @ $501 (1 order)
+[SPX]   Product: Router; Buy levels: 0; Sell levels: 0
+[SPX]   --POSITIONS--
+[SPX]   Trader 0: GPU 0 ($0), Router 0 ($0)
+[SPX] [T0] Parsing command: <BUY 1 GPU 30 501>
+[SPX]   --ORDERBOOK--
+[SPX]   Product: GPU; Buy levels: 1; Sell levels: 0
+[SPX]           BUY 60 @ $501 (2 orders)
+[SPX]   Product: Router; Buy levels: 0; Sell levels: 0
+[SPX]   --POSITIONS--
+[SPX]   Trader 0: GPU 0 ($0), Router 0 ($0)
+[SPX] [T0] Parsing command: <BUY 2 GPU 30 501>
+[SPX]   --ORDERBOOK--
+[SPX]   Product: GPU; Buy levels: 1; Sell levels: 0
+[SPX]           BUY 90 @ $501 (3 orders)
+[SPX]   Product: Router; Buy levels: 0; Sell levels: 0
+[SPX]   --POSITIONS--
+[SPX]   Trader 0: GPU 0 ($0), Router 0 ($0)
+[SPX] [T0] Parsing command: <BUY 3 GPU 30 502>
+[SPX]   --ORDERBOOK--
+[SPX]   Product: GPU; Buy levels: 2; Sell levels: 0
+[SPX]           BUY 30 @ $502 (1 order)
+[SPX]           BUY 90 @ $501 (3 orders)
+[SPX]   Product: Router; Buy levels: 0; Sell levels: 0
+[SPX]   --POSITIONS--
+[SPX]   Trader 0: GPU 0 ($0), Router 0 ($0)
+[SPX] [T0] Parsing command: <BUY 4 GPU 30 503>
+[SPX]   --ORDERBOOK--
+[SPX]   Product: GPU; Buy levels: 3; Sell levels: 0
+[SPX]           BUY 30 @ $503 (1 order)
+[SPX]           BUY 30 @ $502 (1 order)
+[SPX]           BUY 90 @ $501 (3 orders)
+[SPX]   Product: Router; Buy levels: 0; Sell levels: 0
+[SPX]   --POSITIONS--
+[SPX]   Trader 0: GPU 0 ($0), Router 0 ($0)
+[SPX] [T0] Parsing command: <BUY 5 GPU 30 501>
+[SPX]   --ORDERBOOK--
+[SPX]   Product: GPU; Buy levels: 3; Sell levels: 0
+[SPX]           BUY 30 @ $503 (1 order)
+[SPX]           BUY 30 @ $502 (1 order)
+[SPX]           BUY 120 @ $501 (4 orders)
+[SPX]   Product: Router; Buy levels: 0; Sell levels: 0
+[SPX]   --POSITIONS--
+[SPX]   Trader 0: GPU 0 ($0), Router 0 ($0)
+[SPX] [T0] Parsing command: <BUY 6 GPU 30 502>
+[SPX]   --ORDERBOOK--
+[SPX]   Product: GPU; Buy levels: 3; Sell levels: 0
+[SPX]           BUY 30 @ $503 (1 order)
+[SPX]           BUY 60 @ $502 (2 orders)
+[SPX]           BUY 120 @ $501 (4 orders)
+[SPX]   Product: Router; Buy levels: 0; Sell levels: 0
+[SPX]   --POSITIONS--
+[SPX]   Trader 0: GPU 0 ($0), Router 0 ($0)
+[SPX] [T0] Parsing command: <BUY 7 GPU 30 503>
+[SPX]   --ORDERBOOK--
+[SPX]   Product: GPU; Buy levels: 3; Sell levels: 0
+[SPX]           BUY 60 @ $503 (2 orders)
+[SPX]           BUY 60 @ $502 (2 orders)
+[SPX]           BUY 120 @ $501 (4 orders)
+[SPX]   Product: Router; Buy levels: 0; Sell levels: 0
+[SPX]   --POSITIONS--
+[SPX]   Trader 0: GPU 0 ($0), Router 0 ($0)
+[SPX] [T0] Parsing command: <BUY 8 GPU 30 501>
+[SPX]   --ORDERBOOK--
+[SPX]   Product: GPU; Buy levels: 3; Sell levels: 0
+[SPX]           BUY 60 @ $503 (2 orders)
+[SPX]           BUY 60 @ $502 (2 orders)
+[SPX]           BUY 150 @ $501 (5 orders)
+[SPX]   Product: Router; Buy levels: 0; Sell levels: 0
+[SPX]   --POSITIONS--
+[SPX]   Trader 0: GPU 0 ($0), Router 0 ($0)
+[SPX] Trader 0 disconnected
+[SPX] Trading completed
+[SPX] Exchange fees collected: $0

@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
         if (market_open) {
             char *buf = read_from_exchange();
             if (!do_order(buf)) {
-                continue;
+                break;
             }
             sigusr1 = 0;
         } else {

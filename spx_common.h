@@ -24,7 +24,7 @@
 #define FEE_PERCENTAGE 0.01
 #define PRODUCT_CHAR_LIMIT 16
 #define FIFO_LIMIT 80
-#define MAX_ORDER 4
+
 #define VALUE 0
 #define QUANTITY 1
 #define BUYBOOK 0

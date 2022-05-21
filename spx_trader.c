@@ -59,7 +59,8 @@ char *get_message1(char *input) {
 
 void sig_handler(int sig, siginfo_t *sinfo, void *context) {
     if (sig == SIGUSR1) {
-        if (strcmp(read_from_exchange(), "MARKET OPEN") == 0) {
+        char* buf= read_from_exchange();
+        if (strcmp(buf, "MARKET OPEN") == 0) {
             market_open = 1;
             sigusr1 = 1;
         }
@@ -79,17 +80,15 @@ int main(int argc, char **argv) {
     }
 
     // connect to named pipes
-    // trader_id = atoi(argv[1]);
-    // sprintf(exchange_fifo, FIFO_EXCHANGE, trader_id);
-    // sprintf(trader_fifo, FIFO_TRADER, trader_id);
+    trader_id = atoi(argv[1]);
+    sprintf(exchange_fifo, FIFO_EXCHANGE, trader_id);
+    sprintf(trader_fifo, FIFO_TRADER, trader_id);
 
-    fflush(NULL);
     exchange_fd = open(exchange_fifo, O_RDONLY);
-    fflush(NULL);
     trader_fd = open(trader_fifo, O_WRONLY);
-    fflush(NULL);
 
-    printf("here?\n");
+    send_to_exchange("something;");
+
 
     // register signal handler
     struct sigaction sa;

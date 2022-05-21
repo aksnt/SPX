@@ -5,8 +5,8 @@ int exchange_fd, trader_fd;
 char exchange_fifo[FIFO_LIMIT], trader_fifo[FIFO_LIMIT];
 char received_msg[FIFO_LIMIT];
 char *sent_msg;
-int market_open;
 int order_id;
+volatile sig_atomic_t market_open;
 volatile sig_atomic_t sigusr1;
 
 char *read_from_exchange();
@@ -59,12 +59,11 @@ char *get_message1(char *input) {
 
 void sig_handler(int sig, siginfo_t *sinfo, void *context) {
     if (sig == SIGUSR1) {
-        char *buf = read_from_exchange();
-        if (strcmp(buf, "MARKET OPEN") == 0) {
+        if (strcmp(read_from_exchange(), "MARKET OPEN") == 0) {
             market_open = 1;
+            sigusr1 = 0;
+        } else
             sigusr1 = 1;
-        }
-        sigusr1 = 1;
     }
 }
 
@@ -95,8 +94,8 @@ int main(int argc, char **argv) {
 
     // wait for exchange update (MARKET message)
     // event loop:
-    while (1) {
-        if (market_open) {
+    while (market_open) {
+        if (sigusr1) {
             char *buf = read_from_exchange();
             if (!do_order(buf)) {
                 break;

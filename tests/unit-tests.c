@@ -1,4 +1,4 @@
-#include <setjmp.h>
+// #include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -17,4 +17,11 @@ static void test_get_PID(void **state) {
     int PID = 1;
     int result = get_PID(PID);
     assert_int_equal(result, 0);
+}
+
+int main(void) {
+    const struct CMUnitTest tests [] = {
+        cmocka_unit_test(test_get_PID)
+    };
+    return cmocka_run_group_tests(tests, NULL, NULL);
 }

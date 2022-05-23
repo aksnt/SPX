@@ -17,7 +17,7 @@ int trading_fees;
 // Data structures used are two linked lists and a multidimensional array
 order **buybook = NULL;   // buy orderbook
 order **sellbook = NULL;  // sell orderbook
-int ***matchbook;         // stores matched orders for each trader
+double ***matchbook;         // stores matched orders for each trader
 
 // Global signal variables
 volatile sig_atomic_t sigusr1;       // flag variable for logic
@@ -60,13 +60,13 @@ int main(int argc, char **argv) {
     // allocate memory for all 3 books
     buybook = (order **)calloc(num_products, sizeof(order *));
     sellbook = (order **)calloc(num_products, sizeof(order *));
-    matchbook = (int ***)malloc(sizeof(int **) * num_traders);
+    matchbook = (double ***)malloc(sizeof(double **) * num_traders);
 
     // allocate memory for all dimensions of matchbook
     for (int i = 0; i < num_traders; i++) {
-        matchbook[i] = (int **)calloc(num_products, sizeof(int *));
+        matchbook[i] = (double **)calloc(num_products, sizeof(double *));
         for (int j = 0; j < num_products; j++)
-            matchbook[i][j] = (int *)calloc(2, sizeof(int));
+            matchbook[i][j] = (double *)calloc(2, sizeof(double));
     }
 
     SPX_print(" Trading %d products:", num_products);
@@ -292,9 +292,9 @@ void print_positions() {
 
         for (int pidx = 0, count = num_products; pidx < num_products; ++pidx, --count) {
             printf("%s ", products[pidx]);
-            int value = matchbook[tdx][pidx][VALUE];
-            int qty = matchbook[tdx][pidx][QUANTITY];
-            printf("%d ($%d)", qty, value);
+            long long value = (long long) matchbook[tdx][pidx][VALUE];
+            long qty = matchbook[tdx][pidx][QUANTITY];
+            printf("%ld ($%lld)", qty, value);
 
             if (count > 1)
                 printf(", ");
@@ -339,8 +339,8 @@ void match_positions() {
         int order_SID = 0;
         // While both books have orders, we attempt to match
         while (buyptr && sellptr) {
-            long value = 0;
-            long double fee = 0;
+            double value = 0;
+            double fee = 0;
 
             if (buy_price >= sell_price) {
                 // execute order
@@ -401,13 +401,15 @@ void match_positions() {
                         BID = buyptr->trader_id;
                         SID = sellptr->trader_id;
                     }
+                    printf("\n 1. value is: %f\n", value);
                     fee = value * FEE_PERCENTAGE;
 
                     // store order in matched orders for buyer and seller
                     matchbook[buyptr->trader_id][i][VALUE] += -value;
                     matchbook[buyptr->trader_id][i][QUANTITY] += sell_qty;
 
-                    matchbook[sellptr->trader_id][i][VALUE] += (value - round(fee));
+                    matchbook[sellptr->trader_id][i][VALUE] += value;
+                    matchbook[sellptr->trader_id][i][VALUE] -= fee;
                     matchbook[sellptr->trader_id][i][QUANTITY] += -sell_qty;
 
                     order *sell_head = sellbook[i];
@@ -436,11 +438,11 @@ void match_positions() {
                     BID = buyptr->trader_id;
                     SID = sellptr->trader_id;
 
-                    matchbook[BID][i][VALUE] += -value;
-                    matchbook[BID][i][QUANTITY] += buy_qty;
+                    matchbook[buyptr->trader_id][i][VALUE] += -value;
+                    matchbook[buyptr->trader_id][i][QUANTITY] += buy_qty;
 
-                    matchbook[SID][i][VALUE] += (value - round(fee));
-                    matchbook[SID][i][QUANTITY] += -buy_qty;
+                    matchbook[sellptr->trader_id][i][VALUE] += (value - round(fee));
+                    matchbook[sellptr->trader_id][i][QUANTITY] += -buy_qty;
 
                     order *buy_head = buybook[i];
                     buybook[i] = (buybook[i])->next;

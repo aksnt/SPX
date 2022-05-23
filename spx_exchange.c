@@ -5,6 +5,7 @@
  */
 
 #include "spx_exchange.h"
+
 #include "spx_common.h"
 
 // Utility variables storing total products, traders and all products
@@ -679,10 +680,12 @@ int add_order(char *order_line, int trader_id) {
 
     new_order->quantity = qty;
     new_order->price = atoi(strtok(NULL, " "));
+    
     if (new_order->quantity <= 0 || new_order->price <= 0) {
         free(new_order);
         return 0;
     }
+
     new_order->trader_id = trader_id;
     new_order->flag = 0;
 

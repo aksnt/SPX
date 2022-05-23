@@ -98,7 +98,8 @@ int main(int argc, char **argv) {
     while (1) {
         pause();
         if (sigusr1) {
-            if (!do_order(sent_msg)) {
+            char *buf = read_from_exchange();
+            if (!do_order(buf)) {
                 sigusr1 = 0;
                 break;
             }

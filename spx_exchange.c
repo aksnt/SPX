@@ -404,11 +404,11 @@ void match_positions() {
                     fee = value * FEE_PERCENTAGE;
 
                     // store order in matched orders for buyer and seller
-                    matchbook[BID][i][VALUE] += -value;
-                    matchbook[BID][i][QUANTITY] += sell_qty;
+                    matchbook[buyptr->trader_id][i][VALUE] += -value;
+                    matchbook[buyptr->trader_id][i][QUANTITY] += sell_qty;
 
-                    matchbook[SID][i][VALUE] += (value - round(fee));
-                    matchbook[SID][i][QUANTITY] += -sell_qty;
+                    matchbook[sellptr->trader_id][i][VALUE] += (value - round(fee));
+                    matchbook[sellptr->trader_id][i][QUANTITY] += -sell_qty;
 
                     order *sell_head = sellbook[i];
                     sellbook[i] = (sellbook[i])->next;

@@ -175,16 +175,31 @@ int main(int argc, char **argv) {
     SPX_print(" Exchange fees collected: $%d\n", trading_fees);
 
     /* TEARDOWN OPERATIONS */
+    for (int i = 0; i < num_products; i++) {
+        order *buyfree;
+        while (buybook[i]) {
+            buyfree = buybook[i];
+            buybook[i] = (buybook[i])->next;
+            free(buyfree);
+        }
+    }
+
+    for (int i = 0; i < num_products; i++) {
+        order *sellfree;
+        while (sellbook[i]) {
+            sellfree = sellbook[i];
+            sellbook[i] = (sellbook[i])->next;
+            free(sellfree);
+        }
+    }
+    free(buybook);
+    free(sellbook);
 
     //  Free products and books memory
     for (int i = 0; i < num_products; i++) {
         free(products[i]);
-        free(buybook[i]);
-        free(sellbook[i]);
     }
     free(products);
-    free(buybook);
-    free(sellbook);
 
     // Free matchbook memory
     for (int i = 0; i < num_traders; i++) {
@@ -309,10 +324,10 @@ void match_positions() {
             break;
         }
 
-        int buy_price = (buybook[i])->price;    // head of buybook for a product
-        int sell_price = (sellbook[i])->price;  // head of sellbook for a product
-        int buy_qty = (buybook[i])->quantity;
-        int sell_qty = (sellbook[i])->quantity;
+        long buy_price = (buybook[i])->price;    // head of buybook for a product
+        long sell_price = (sellbook[i])->price;  // head of sellbook for a product
+        long buy_qty = (buybook[i])->quantity;
+        long sell_qty = (sellbook[i])->quantity;
         int sold = 0;
         int bought = 0;
 
@@ -322,8 +337,8 @@ void match_positions() {
         int order_SID = 0;
         // While both books have orders, we attempt to match
         while (buyptr && sellptr) {
-            double value = 0;
-            double fee = 0;
+            long value = 0;
+            long fee = 0;
 
             if (buy_price >= sell_price) {
                 // execute order
@@ -370,17 +385,18 @@ void match_positions() {
                     (buybook[i])->quantity =
                         (buybook[i])->quantity - (sellbook[i])->quantity;
 
-                    if (buyptr->order_id > sellptr->order_id) {
+                    if (buyptr->order_id >= sellptr->order_id) {
                         value = sellptr->price * sellptr->quantity;
+
                     } else {
                         value = buyptr->price * sellptr->quantity;
                     }
                     fee = value * FEE_PERCENTAGE;
 
-                    order_BID = buyptr->order_id;
-                    order_SID = sellptr->order_id;
-                    BID = buyptr->trader_id;
-                    SID = sellptr->trader_id;
+                    order_SID = buyptr->order_id;
+                    order_BID = sellptr->order_id;
+                    SID = buyptr->trader_id;
+                    BID = sellptr->trader_id;
 
                     // store order in matched orders for buyer and seller
                     matchbook[BID][i][VALUE] += -value;
@@ -707,11 +723,10 @@ int add_order(char *order_line, int trader_id) {
         }
     }
 
-    if (max_bid > max_sid) 
+    if (max_bid > max_sid)
         max_id = max_bid;
-    else 
+    else
         max_id = max_sid;
-    
 
     if ((max_id >= 0) && (new_order->order_id - max_id) != 1) {
         free(new_order);

@@ -401,8 +401,9 @@ void match_positions() {
                         BID = buyptr->trader_id;
                         SID = sellptr->trader_id;
                     }
-                    
+
                     fee = value * FEE_PERCENTAGE;
+                    printf("\n val is %f\n", value);
 
                     // store order in matched orders for buyer and seller
                     matchbook[buyptr->trader_id][i][VALUE] += -value;
@@ -430,8 +431,9 @@ void match_positions() {
                         value = buyptr->price * buyptr->quantity;
                     }
 
-                    value = (buybook[i])->price * (buybook[i])->quantity;
+                    // value = (buybook[i])->price * (buybook[i])->quantity;
                     fee = value * FEE_PERCENTAGE;
+                    
 
                     order_BID = buyptr->order_id;
                     order_SID = sellptr->order_id;
@@ -450,7 +452,7 @@ void match_positions() {
                     buyptr = buybook[i];
                 }
 
-                SPX_print(" Match: Order %d [T%d], New Order %d [T%d], value: $%ld, fee: $%.0f.\n",
+                SPX_print(" Match: Order %d [T%d], New Order %d [T%d], value: $%.0f, fee: $%.0f.\n",
                           order_BID, BID, order_SID, SID, value, round(fee));
 
                 signal_fill(order_BID, order_SID, bought, sold, BID, SID);

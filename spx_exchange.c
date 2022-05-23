@@ -401,7 +401,7 @@ void match_positions() {
                         BID = buyptr->trader_id;
                         SID = sellptr->trader_id;
                     }
-                    printf("\n 1. value is: %f\n", value);
+                    
                     fee = value * FEE_PERCENTAGE;
 
                     // store order in matched orders for buyer and seller

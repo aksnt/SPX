@@ -422,13 +422,12 @@ void match_positions() {
                     (sellbook[i])->quantity =
                         (sellbook[i])->quantity - (buybook[i])->quantity;
 
-                    if (buyptr->order_id >= sellptr->order_id) {
+                    if (buyptr->order_id >= sellptr->order_id && sellptr->trader_id > buyptr->trader_id) {
                         value = sellptr->price * buyptr->quantity;
                         order_BID = buyptr->order_id;
                         order_SID = sellptr->order_id;
-                        BID = buyptr->trader_id;
-                        SID = sellptr->trader_id;
-
+                        SID = buyptr->trader_id;
+                        BID = sellptr->trader_id;
                     } else {
                         value = buyptr->price * buyptr->quantity;
                         order_SID = buyptr->order_id;

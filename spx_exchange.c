@@ -340,7 +340,7 @@ void match_positions() {
         // While both books have orders, we attempt to match
         while (buyptr && sellptr) {
             long value = 0;
-            float fee = 0;
+            long double fee = 0;
 
             if (buy_price >= sell_price) {
                 // execute order
@@ -387,7 +387,7 @@ void match_positions() {
                     (buybook[i])->quantity =
                         (buybook[i])->quantity - (sellbook[i])->quantity;
 
-                    if (buyptr->order_id >= sellptr->order_id) {
+                    if (buyptr->order_id > sellptr->order_id) {
                         value = sellptr->price * sellptr->quantity;
                         order_SID = buyptr->order_id;
                         order_BID = sellptr->order_id;

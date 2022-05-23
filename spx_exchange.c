@@ -181,6 +181,7 @@ int main(int argc, char **argv) {
             buyfree = buybook[i];
             buybook[i] = (buybook[i])->next;
             free(buyfree);
+            buyfree = NULL;
         }
     }
 
@@ -190,6 +191,7 @@ int main(int argc, char **argv) {
             sellfree = sellbook[i];
             sellbook[i] = (sellbook[i])->next;
             free(sellfree);
+            sellfree = NULL;
         }
     }
     free(buybook);
@@ -338,7 +340,7 @@ void match_positions() {
         // While both books have orders, we attempt to match
         while (buyptr && sellptr) {
             long value = 0;
-            long fee = 0;
+            float fee = 0;
 
             if (buy_price >= sell_price) {
                 // execute order
@@ -387,16 +389,17 @@ void match_positions() {
 
                     if (buyptr->order_id >= sellptr->order_id) {
                         value = sellptr->price * sellptr->quantity;
-                        order_BID = buyptr->order_id;
-                        order_SID = sellptr->order_id;
-                        BID = buyptr->trader_id;
-                        SID = sellptr->trader_id;
-                    } else {
-                        value = buyptr->price * sellptr->quantity;
                         order_SID = buyptr->order_id;
                         order_BID = sellptr->order_id;
                         SID = buyptr->trader_id;
                         BID = sellptr->trader_id;
+
+                    } else {
+                        value = buyptr->price * sellptr->quantity;
+                        order_BID = buyptr->order_id;
+                        order_SID = sellptr->order_id;
+                        BID = buyptr->trader_id;
+                        SID = sellptr->trader_id;
                     }
                     fee = value * FEE_PERCENTAGE;
 
@@ -419,7 +422,7 @@ void match_positions() {
                     (sellbook[i])->quantity =
                         (sellbook[i])->quantity - (buybook[i])->quantity;
 
-                    if (buyptr->order_id > sellptr->order_id) {
+                    if (buyptr->order_id >= sellptr->order_id) {
                         value = sellptr->price * buyptr->quantity;
                     } else {
                         value = buyptr->price * buyptr->quantity;
@@ -445,7 +448,7 @@ void match_positions() {
                     buyptr = buybook[i];
                 }
 
-                SPX_print(" Match: Order %d [T%d], New Order %d [T%d], value: $%.0f, fee: $%.0f.\n",
+                SPX_print(" Match: Order %d [T%d], New Order %d [T%d], value: $%ld, fee: $%.0f.\n",
                           order_BID, BID, order_SID, SID, value, round(fee));
 
                 signal_fill(order_BID, order_SID, bought, sold, BID, SID);

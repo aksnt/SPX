@@ -424,17 +424,19 @@ void match_positions() {
 
                     if (buyptr->order_id >= sellptr->order_id) {
                         value = sellptr->price * buyptr->quantity;
+                        order_SID = buyptr->order_id;
+                        order_BID = sellptr->order_id;
+                        SID = buyptr->trader_id;
+                        BID = sellptr->trader_id;
                     } else {
                         value = buyptr->price * buyptr->quantity;
+                        order_BID = buyptr->order_id;
+                        order_SID = sellptr->order_id;
+                        BID = buyptr->trader_id;
+                        SID = sellptr->trader_id;
                     }
 
-                    value = (buybook[i])->price * (buybook[i])->quantity;
                     fee = value * FEE_PERCENTAGE;
-
-                    order_BID = buyptr->order_id;
-                    order_SID = sellptr->order_id;
-                    BID = buyptr->trader_id;
-                    SID = sellptr->trader_id;
 
                     matchbook[BID][i][VALUE] += -value;
                     matchbook[BID][i][QUANTITY] += buy_qty;
@@ -445,6 +447,7 @@ void match_positions() {
                     order *buy_head = buybook[i];
                     buybook[i] = (buybook[i])->next;
                     free(buy_head);  // free memory allocated
+                    buy_head = NULL;
                     buyptr = buybook[i];
                 }
 

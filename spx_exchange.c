@@ -150,7 +150,6 @@ int main(int argc, char **argv) {
             SPX_print(" [T%d] Parsing command: <%s>\n", trader_idx, buf);
 
             // Add the order to the orderbook, if invalid then break
-            !add_order(buf, trader_idx);
             if (!(add_order(buf, trader_idx))) {
                 write_to_trader(trader_idx, "INVALID;");
                 sigusr1 = 0;

@@ -634,6 +634,7 @@ int add_order(char *order_line, int trader_id) {
         write_to_trader(trader_id, msg);
         return 2;
     }
+    free(copy);
 
     int idx = 0;
     char *id = strtok(NULL, " ");
@@ -641,7 +642,7 @@ int add_order(char *order_line, int trader_id) {
         free(new_order);
         return 0;
     } else {
-         idx = atoi(id);
+        idx = atoi(id);
     }
 
     new_order->order_id = idx;
@@ -649,7 +650,6 @@ int add_order(char *order_line, int trader_id) {
         free(new_order);
         return 0;
     }
-    free(copy);
 
     int pidx = 0;
     if (!amended) {
@@ -659,7 +659,7 @@ int add_order(char *order_line, int trader_id) {
             return 0;
         }
         pidx = get_pidx(product_type);
-        if (pidx != -1) 
+        if (pidx != -1)
             new_order->product_idx = pidx;
         else {
             free(new_order);
@@ -677,6 +677,7 @@ int add_order(char *order_line, int trader_id) {
     } else {
         qty = atoi(quant);
     }
+
     new_order->quantity = qty;
     new_order->price = atoi(strtok(NULL, " "));
     if (new_order->quantity <= 0 || new_order->price <= 0) {
@@ -707,7 +708,6 @@ int add_order(char *order_line, int trader_id) {
             return 0;
         }
     }
-
 
     if (buyptr && sellptr) {
         while (buyptr) {

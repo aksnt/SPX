@@ -12,6 +12,17 @@ volatile sig_atomic_t sigusr1;
 char *read_from_exchange();
 void send_to_exchange(char *msg);
 
+void sig_handler(int sig, siginfo_t *sinfo, void *context) {
+    if (sig == SIGUSR1) {
+        sent_msg = read_from_exchange();
+        if (strcmp(sent_msg, "MARKET OPEN") == 0) {
+            market_open = 1;
+            sigusr1 = 0;
+        } else
+            sigusr1 = 1;
+    }
+}
+
 int do_order(char *order_line) {
     int flag = 0;
     char *mkt = strtok(order_line, " ");
@@ -57,17 +68,6 @@ char *get_message1(char *input) {
     return input;
 }
 
-void sig_handler(int sig, siginfo_t *sinfo, void *context) {
-    if (sig == SIGUSR1) {
-        sent_msg = read_from_exchange();
-        if (strcmp(sent_msg, "MARKET OPEN") == 0) {
-            market_open = 1;
-            sigusr1 = 0;
-        } else
-            sigusr1 = 1;
-    }
-}
-
 void send_to_exchange(char *msg) {
     write(trader_fd, msg, strlen(msg));
     kill(getppid(), SIGUSR1);
@@ -96,13 +96,13 @@ int main(int argc, char **argv) {
 
     // event loop:
     while (1) {
+        pause();
         if (sigusr1) {
             if (!do_order(sent_msg)) {
+                sigusr1 = 0;
                 break;
             }
             sigusr1 = 0;
-        } else {
-            pause();
         }
     }
     unlink(exchange_fifo);

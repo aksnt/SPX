@@ -698,6 +698,7 @@ int add_order(char *order_line, int trader_id) {
             return 0;
         }
     }
+    
 
     if (buyptr && sellptr) {
         while (buyptr) {

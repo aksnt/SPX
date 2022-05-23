@@ -88,12 +88,12 @@ int main(int argc, char **argv) {
     trader_fd = open(trader_fifo, O_WRONLY);
 
     // register signal handler
+    // wait for exchange update (MARKET message)
     struct sigaction sa;
     memset(&sa, 0, sizeof(struct sigaction));
     sa.sa_sigaction = &sig_handler;
     sa.sa_flags = SA_SIGINFO;
 
-    // wait for exchange update (MARKET message)
     // event loop:
     while (1) {
         if (sigusr1) {

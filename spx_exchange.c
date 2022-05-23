@@ -5,6 +5,7 @@
  */
 
 #include "spx_exchange.h"
+
 #include "spx_common.h"
 
 // Utility variables storing total products, traders and all products
@@ -109,7 +110,6 @@ int main(int argc, char **argv) {
             printf("ERROR: Failed to create FIFO /tmp/spx_trader_%d", i);
         }
         SPX_print(" Created FIFO %s\n", trader_fifo[i]);
-        usleep(1);
         SPX_print(" Starting trader %d (%s)\n", i, argv[2 + i]);
 
         // Start each trader as a child process
@@ -150,9 +150,9 @@ int main(int argc, char **argv) {
             SPX_print(" [T%d] Parsing command: <%s>\n", trader_idx, buf);
 
             // Add the order to the orderbook, if invalid then break
-            int res = add_order(buf, trader_idx);
-            if (!res) {
-                write_to_trader(trader_idx, "INVALID");
+            !add_order(buf, trader_idx);
+            if (!(add_order(buf, trader_idx))) {
+                write_to_trader(trader_idx, "INVALID;");
                 sigusr1 = 0;
                 continue;
             }
@@ -172,7 +172,6 @@ int main(int argc, char **argv) {
     }
 
     // Trading is now compelete
-
     SPX_print(" Trading completed\n");
     SPX_print(" Exchange fees collected: $%d\n", trading_fees);
 
@@ -197,7 +196,7 @@ int main(int argc, char **argv) {
     }
     free(matchbook);
 
-    // Safetely cleanup and free memory for FIFOs
+    // Safely cleanup and free memory for FIFOs
     for (int i = 0; i < num_traders; i++) {
         unlink(exchange_fifo[i]);
         unlink(trader_fifo[i]);
@@ -331,7 +330,11 @@ void match_positions() {
                 // execute order
                 if (buy_qty == sell_qty) {
                     // calculate the transaction value and fee
-                    value = buyptr->price * sellptr->quantity;
+                    if (buyptr->order_id > sellptr->order_id) {
+                        value = sellptr->price * sellptr->quantity;
+                    } else {
+                        value = buyptr->price * sellptr->quantity;
+                    }
                     fee = value * FEE_PERCENTAGE;
 
                     order_BID = buyptr->order_id;
@@ -368,7 +371,11 @@ void match_positions() {
                     (buybook[i])->quantity =
                         (buybook[i])->quantity - (sellbook[i])->quantity;
 
-                    value = buyptr->price * (sellbook[i])->quantity;
+                    if (buyptr->order_id > sellptr->order_id) {
+                        value = sellptr->price * sellptr->quantity;
+                    } else {
+                        value = buyptr->price * sellptr->quantity;
+                    }
                     fee = value * FEE_PERCENTAGE;
 
                     order_BID = buyptr->order_id;
@@ -394,6 +401,12 @@ void match_positions() {
                     sold = (buybook[i])->quantity;
                     (sellbook[i])->quantity =
                         (sellbook[i])->quantity - (buybook[i])->quantity;
+
+                    if (buyptr->order_id > sellptr->order_id) {
+                        value = sellptr->price * buyptr->quantity;
+                    } else {
+                        value = buyptr->price * buyptr->quantity;
+                    }
 
                     value = (buybook[i])->price * (buybook[i])->quantity;
                     fee = value * FEE_PERCENTAGE;
@@ -447,7 +460,7 @@ int invalid_order(char *order_type, order *new_order, int pidx) {
         return 1;
 
     if (!new_order->price || !new_order->quantity || !order_type)
-        return 1;
+        return 0;
 
     if (strcmp(order_type, "BUY") == 0) {
         while (buyptr) {
@@ -643,16 +656,6 @@ int add_order(char *order_line, int trader_id) {
     }
 
     // If the order was amended, send amended
-    if (amended) {
-        char msg[FIFO_LIMIT];
-        sprintf(msg, AMENDED, new_order->order_id);
-        write_to_trader(trader_id, msg);
-
-    } else {
-        // send accepeted to trader and market <order details> to others
-        signal_accepted(trader_id, new_order->order_id,
-                        order_type, pidx, new_order->quantity, new_order->price);
-    }
 
     order *buyptr = buybook[pidx];
     order *sellptr = sellbook[pidx];
@@ -705,15 +708,27 @@ int add_order(char *order_line, int trader_id) {
         }
     }
 
-    if (max_bid > max_sid) {
+    if (max_bid > max_sid) 
         max_id = max_bid;
-    } else {
+    else 
         max_id = max_sid;
-    }
+    
 
     if ((max_id >= 0) && (new_order->order_id - max_id) != 1) {
         free(new_order);
         return 0;
+    }
+
+    // if order was amended, send amended
+    if (amended) {
+        char msg[FIFO_LIMIT];
+        sprintf(msg, AMENDED, new_order->order_id);
+        write_to_trader(trader_id, msg);
+
+    } else {
+        // send accepeted to trader and market <order details> to others
+        signal_accepted(trader_id, new_order->order_id,
+                        order_type, pidx, new_order->quantity, new_order->price);
     }
 
     // Insert in order of price -> according to buy or sell

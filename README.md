@@ -1,4 +1,4 @@
-1. Describe how your exchange works.
+Exchange works as follows:
 
 FIFO/Signals:
 File descriptors and FIFOs are dynamically allocated and signal handlers for both SIGCHLD and SIGUSR1 are setup with flags SIGINFO (to store sending PID). Next, any prior FIFOs are cleaned and two new FIFOs are created for each trader, exchange_fifo and trader_fifo. Next, fork(). Child process: -> trader executes their binary. Parent process: -> stores child PID and opens exchange_FIFO for writing and trader_FIFO for reading. 
@@ -10,10 +10,8 @@ If/once SIGUSR1 is received, a global flag is set to true and sending PID stored
 Logic:
 It utilises two singly linkedlists buybook and sellbook which store orders. Also, a multidimensional array stores matches -> matchbook[trader][product][match_idx]. In event loop, first an order from sending PID is added and if successful, then positions are attempted to be matched, orderbook and positions printed.
 
-2. Describe your design decisions for the trader and how it's fault-tolerant.
-The auto trader utilises a similar interface and marks a global variable to true when market is open. Following this, it reads an order and places the reverse using a pause(), allowing it to await further orders
+Tests work as follows:
 
-3. Describe your tests and how to run them.
 E2E Tests:
 
 I have enclosed a tradertest.c, this can be complied using the compile script. To use, just enclose orders within the file and compile and run. The tradertest.c itself has a simple interface to add orders. Using the ./compile in terminal will compile everything, simply run the spx_exchange and the trader will interact with exchange based on whatever orders were put through. 

@@ -1,9 +1,3 @@
-/**
- * comp2017 - assignment 3
- * <Akshil Natuh>
- * <anat9934>
- */
-
 #include "spx_exchange.h"
 
 #include "spx_common.h"
@@ -102,6 +96,7 @@ int main(int argc, char **argv) {
         unlink(exchange_fifo[i]);  // deletes any prior FIFOs
         if (mkfifo(exchange_fifo[i], 0666) == -1) {
             printf("ERROR: Failed to create FIFO /tmp/spx_exchange_%d", i);
+            continue;
         }
         SPX_print(" Created FIFO %s\n", exchange_fifo[i]);
 
@@ -695,68 +690,66 @@ int add_order(char *order_line, int trader_id) {
         return 0;
     }
 
-    // If the order was amended, send amended
+    // order *buyptr = buybook[pidx];
+    // order *sellptr = sellbook[pidx];
 
-    order *buyptr = buybook[pidx];
-    order *sellptr = sellbook[pidx];
+    // int max_id = -1;
+    // int max_bid = -1;
+    // int max_sid = -1;
 
-    int max_id = -1;
-    int max_bid = -1;
-    int max_sid = -1;
+    // if (!buyptr && !sellptr) {
+    //     if (new_order->order_id != 0) {
+    //         free(new_order);
+    //         return 0;
+    //     }
+    // }
 
-    if (!buyptr && !sellptr) {
-        if (new_order->order_id != 0) {
-            free(new_order);
-            return 0;
-        }
-    }
+    // if (buyptr && sellptr) {
+    //     while (buyptr) {
+    //         if ((buyptr->order_id > max_bid) &&
+    //             (new_order->trader_id == buyptr->trader_id)) {
+    //             max_bid = buyptr->order_id;
+    //         }
+    //         buyptr = buyptr->next;
+    //     }
+    //     while (sellptr) {
+    //         if ((sellptr->order_id > max_sid) &&
+    //             (new_order->trader_id == sellptr->trader_id)) {
+    //             max_sid = sellptr->order_id;
+    //         }
+    //         sellptr = sellptr->next;
+    //     }
+    // }
 
-    if (buyptr && sellptr) {
-        while (buyptr) {
-            if ((buyptr->order_id > max_bid) &&
-                (new_order->trader_id == buyptr->trader_id)) {
-                max_bid = buyptr->order_id;
-            }
-            buyptr = buyptr->next;
-        }
-        while (sellptr) {
-            if ((sellptr->order_id > max_sid) &&
-                (new_order->trader_id == sellptr->trader_id)) {
-                max_sid = sellptr->order_id;
-            }
-            sellptr = sellptr->next;
-        }
-    }
+    // if (buyptr && !sellptr) {
+    //     while (buyptr) {
+    //         if ((buyptr->order_id > max_bid) &&
+    //             (new_order->trader_id == buyptr->trader_id)) {
+    //             max_bid = buyptr->order_id;
+    //         }
+    //         buyptr = buyptr->next;
+    //     }
+    // }
 
-    if (buyptr && !sellptr) {
-        while (buyptr) {
-            if ((buyptr->order_id > max_bid) &&
-                (new_order->trader_id == buyptr->trader_id)) {
-                max_bid = buyptr->order_id;
-            }
-            buyptr = buyptr->next;
-        }
-    }
+    // if (!buyptr && sellptr) {
+    //     while (sellptr) {
+    //         if ((sellptr->order_id > max_sid) &&
+    //             (new_order->trader_id == sellptr->trader_id)) {
+    //             max_sid = sellptr->order_id;
+    //         }
+    //         sellptr = sellptr->next;
+    //     }
+    // }
 
-    if (!buyptr && sellptr) {
-        while (sellptr) {
-            if ((sellptr->order_id > max_sid) &&
-                (new_order->trader_id == sellptr->trader_id)) {
-                max_sid = sellptr->order_id;
-            }
-            sellptr = sellptr->next;
-        }
-    }
+    // if (max_bid > max_sid)
+    //     max_id = max_bid;
+    // else
+    //     max_id = max_sid;
 
-    if (max_bid > max_sid)
-        max_id = max_bid;
-    else
-        max_id = max_sid;
-
-    if ((max_id >= 0) && (new_order->order_id - max_id) != 1) {
-        free(new_order);
-        return 0;
-    }
+    // if ((max_id >= 0) && (new_order->order_id - max_id) != 1) {
+    //     free(new_order);
+    //     return 0;
+    // }
 
     // if order was amended, send amended
     if (amended) {

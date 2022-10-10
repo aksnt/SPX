@@ -26,7 +26,7 @@ void sig_handler(int sig, siginfo_t *sinfo, void *context) {
 int do_order(char *order_line) {
     int flag = 0;
     char *mkt = strtok(order_line, " ");
-    if (!strcmp(mkt, "MARKET") == 0) {
+    if (strcmp(mkt, "MARKET") != 0) {
         return 0;
     }
 

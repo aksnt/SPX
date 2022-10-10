@@ -9,7 +9,9 @@ int market_open;
 
 void sig_handler(int sig) {
     if (sig == SIGUSR1) {
-        if (strcmp(read_from_exchange(), "MARKET OPEN") == 0) {
+        if (market_open) {
+            market_open = 1;
+        } else if (strcmp(read_from_exchange(), "MARKET OPEN") == 0) {
             market_open = 1;
         }
     }
@@ -27,6 +29,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+
     // connect to named pipes
     trader_id = atoi(argv[1]);
     sprintf(exchange_fifo, FIFO_EXCHANGE, trader_id);
@@ -37,17 +40,17 @@ int main(int argc, char **argv) {
 
     // register signal handler
     signal(SIGUSR1, sig_handler);
-    kill(getppid(), SIGUSR1);
 
     while (1) {
         pause();
         if (market_open) {
-
             /****************************************/
             // write some orders here
 
-            send_to_exchange("SELL 0 GPU 30 500;");
-            send_to_exchange("BUY 1 GPU 300 500;");
+            send_to_exchange("BUY 0 GPU 30 500;");                     
+            send_to_exchange("SELL 1 GPU 30 500;");                     
+            send_to_exchange("BUY 2 GPU 30 500;");                     
+            send_to_exchange("BUY 3 GPU 30 500;");                     
 
             /****************************************/
 

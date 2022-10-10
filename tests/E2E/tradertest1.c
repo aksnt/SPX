@@ -37,25 +37,24 @@ int main(int argc, char **argv) {
 
     // register signal handler
     signal(SIGUSR1, sig_handler);
-    kill(getppid(), SIGUSR1);
 
     while (1) {
         pause();
         if (market_open) {
-
             /****************************************/
             // write some orders here
 
             send_to_exchange("SELL 0 GPU 30 500;");
-            send_to_exchange("BUY 1 GPU 300 500;");
+            // pause();
 
             /****************************************/
 
             // disconnect
             market_open = 0;
-            kill(getppid(), SIGCHLD);
+            
         }
     }
+    kill(getppid(), SIGCHLD);
 }
 
 char *read_from_exchange() {
